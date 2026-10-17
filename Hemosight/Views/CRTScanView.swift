@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import AVFoundation
+import Combine
 
 /// Interactive Camera Viewfinder and real-time physiological perfusion waveform visualizer.
 /// Tracks toe nailbed blanching recovery and computes digital Capillary Refill Time (CRT).

@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 /// Primary navigation dashboard adhering to modern Apple Human Interface Guidelines (HIG).
 /// Displays quick scan action cards, clinical contrast warning alerts,

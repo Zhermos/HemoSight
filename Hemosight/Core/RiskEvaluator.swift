@@ -1,5 +1,6 @@
 import Foundation
 import CoreML
+import Combine
 
 /// On-Device Multi-Modal Risk Evaluator combining digital CRT photoplethysmography,
 /// ARKit LiDAR circumference asymmetry, and patient clinical history flags.
@@ -25,14 +26,15 @@ public final class RiskEvaluator: ObservableObject, @unchecked Sendable {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             
-            // Check bundle for compiled mlmodelc or mlpackage
+            // Check bundle for compiled mlmodelc, mlmodel, or mlpackage
             let modelURL = Bundle.main.url(forResource: "LimbRiskClassifier", withExtension: "mlmodelc")
+                ?? Bundle.main.url(forResource: "LimbRiskClassifier", withExtension: "mlmodel")
                 ?? Bundle.main.url(forResource: "LimbRiskClassifier", withExtension: "mlpackage")
             
             if let modelURL = modelURL {
                 do {
                     let compiledURL: URL
-                    if modelURL.pathExtension == "mlpackage" {
+                    if modelURL.pathExtension == "mlpackage" || modelURL.pathExtension == "mlmodel" {
                         compiledURL = try MLModel.compileModel(at: modelURL)
                     } else {
                         compiledURL = modelURL

@@ -123,7 +123,7 @@ public final class LiDARScanner: NSObject, ObservableObject, @unchecked Sendable
             let ptr = vertexBuffer.buffer.contents()
             
             // Sample vertex points into world space
-            for i in strideBy(from: 0, to: vertexBuffer.count, by: 4) {
+            for i in stride(from: 0, to: vertexBuffer.count, by: 4) {
                 let vertexPtr = ptr.advanced(by: i * stride).assumingMemoryBound(to: SIMD3<Float>.self)
                 let localPoint = vertexPtr.pointee
                 let worldMatrix = anchor.transform

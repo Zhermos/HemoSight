@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 /// Patient Symptoms & Clinical History Questionnaire
 /// Evaluates Fontaine / Rutherford stages (Claudication distance, nocturnal rest pain)

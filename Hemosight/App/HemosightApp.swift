@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 /// Main Application Entry Point for Hemosight (ทัศนโลหิต)
 /// On-device microvascular and 3D morphometric limb ischemia screening system.

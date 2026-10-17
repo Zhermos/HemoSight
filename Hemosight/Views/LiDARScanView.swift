@@ -1,6 +1,7 @@
 import SwiftUI
 import ARKit
 import RealityKit
+import Combine
 
 /// Interactive ARKit LiDAR 3D scanning interface for bilateral lower limb morphometry.
 /// Visualizes live point-cloud density, cross-sectional circumference readouts,

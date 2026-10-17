@@ -263,10 +263,10 @@ extension CRTCameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
         var pixelCount: UInt64 = 0
         
         // Step stride of 2 for fast cache-friendly spatial averaging
-        let stride = 2
-        for y in strideBy(from: roiY, to: roiY + roiH, by: stride) {
+        let strideStep = 2
+        for y in stride(from: roiY, to: roiY + roiH, by: strideStep) {
             let rowPtr = baseAddress.advanced(by: y * bytesPerRow).assumingMemoryBound(to: UInt8.self)
-            for x in strideBy(from: roiX, to: roiX + roiW, by: stride) {
+            for x in stride(from: roiX, to: roiX + roiW, by: strideStep) {
                 let pixelIndex = x * 4 // BGRA format
                 // In BGRA: [B, G, R, A] -> Red is at offset 2
                 let redVal = rowPtr[pixelIndex + 2]
