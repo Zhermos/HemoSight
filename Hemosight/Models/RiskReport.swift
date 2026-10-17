@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// Comprehensive multi-modal risk report synthesizing digital CRT perfusion,
 /// 3D LiDAR limb morphometry asymmetry, and clinical profile.
@@ -51,6 +52,14 @@ public struct RiskReport: Identifiable, Codable, Sendable {
             case .low: return "#34C759"      // Apple System Green
             case .moderate: return "#FF9500" // Apple System Orange
             case .critical: return "#FF3B30" // Apple System Red
+            }
+        }
+        
+        public var themeColor: Color {
+            switch self {
+            case .low: return .green
+            case .moderate: return .orange
+            case .critical: return .red
             }
         }
         

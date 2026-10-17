@@ -70,6 +70,14 @@ public struct RiskReportView: View {
     
     // MARK: - Subcomponents
     
+    private var tierColor: Color {
+        switch report.riskTier {
+        case .low: return .green
+        case .moderate: return .orange
+        case .critical: return .red
+        }
+    }
+    
     private var heroTriageCard: some View {
         VStack(spacing: 16) {
             HStack {
@@ -78,8 +86,8 @@ public struct RiskReportView: View {
                     .bold()
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
-                    .background(Color(hex: report.riskTier.colorHex).opacity(0.2))
-                    .foregroundStyle(Color(hex: report.riskTier.colorHex))
+                    .background(tierColor.opacity(0.2))
+                    .foregroundStyle(tierColor)
                     .clipShape(Capsule())
                 
                 Spacer()
@@ -92,7 +100,7 @@ public struct RiskReportView: View {
             HStack(spacing: 16) {
                 Image(systemName: report.riskTier.iconName)
                     .font(.system(size: 40))
-                    .foregroundStyle(Color(hex: report.riskTier.colorHex))
+                    .foregroundStyle(tierColor)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(report.riskTier.title)
@@ -113,11 +121,11 @@ public struct RiskReportView: View {
             }
         }
         .padding(20)
-        .background(Color(hex: report.riskTier.colorHex).opacity(0.12))
+        .background(tierColor.opacity(0.12))
         .clipShape(.rect(cornerRadius: 22))
         .overlay {
             RoundedRectangle(cornerRadius: 22)
-                .stroke(Color(hex: report.riskTier.colorHex).opacity(0.3), lineWidth: 1.5)
+                .stroke(tierColor.opacity(0.3), lineWidth: 1.5)
         }
     }
     
@@ -162,34 +170,91 @@ public struct RiskReportView: View {
         .clipShape(.rect(cornerRadius: 20))
     }
     
+    // MARK: - Biomarker Computed Properties
+    
+    private var crtValue: String {
+        report.crtMeasurement?.formattedCRT ?? "2.10 s"
+    }
+    
+    private var crtStatus: String {
+        let sec = report.crtMeasurement?.crtSeconds ?? 2.1
+        return sec < 2.0 ? "Normal" : "Prolonged"
+    }
+    
+    private var crtColor: Color {
+        let sec = report.crtMeasurement?.crtSeconds ?? 2.1
+        return sec < 2.0 ? .green : .red
+    }
+    
+    private var asymmetryValue: String {
+        if let limb = report.limbScanData {
+            return String(format: "%.1f%%", limb.calfAsymmetryPct)
+        }
+        return "3.2%"
+    }
+    
+    private var asymmetryStatus: String {
+        let pct = report.limbScanData?.calfAsymmetryPct ?? 3.2
+        return pct > 8.0 ? "Atrophy" : "Symmetric"
+    }
+    
+    private var asymmetryColor: Color {
+        let pct = report.limbScanData?.calfAsymmetryPct ?? 3.2
+        return pct > 8.0 ? .red : .green
+    }
+    
+    private var restPainValue: String {
+        "\(report.patientProfile.restPainScore) / 10"
+    }
+    
+    private var restPainStatus: String {
+        report.patientProfile.restPainScore >= 5 ? "Severe" : "Mild/None"
+    }
+    
+    private var restPainColor: Color {
+        report.patientProfile.restPainScore >= 5 ? .red : .green
+    }
+    
+    private var walkingValue: String {
+        "\(Int(report.patientProfile.claudicationDistanceMeters)) m"
+    }
+    
+    private var walkingStatus: String {
+        report.patientProfile.claudicationDistanceMeters < 100 ? "Severe Limit" : "Moderate"
+    }
+    
+    private var walkingColor: Color {
+        report.patientProfile.claudicationDistanceMeters < 100 ? .red : .orange
+    }
+    
     private var biomarkersGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             BiomarkerTile(
                 title: "Digital CRT",
-                value: report.crtMeasurement?.formattedCRT ?? "2.10 s",
-                status: (report.crtMeasurement?.crtSeconds ?? 2.1) < 2.0 ? "Normal" : "Prolonged",
-                color: (report.crtMeasurement?.crtSeconds ?? 2.1) < 2.0 ? .green : .red
+                value: crtValue,
+                status: crtStatus,
+                color: crtColor
             )
             
             BiomarkerTile(
                 title: "Calf Asymmetry",
-                value: report.limbScanData != nil ? String(format: "%.1f%%", report.limbScanData!.calfAsymmetryPct) : "3.2%",
-                status: (report.limbScanData?.calfAsymmetryPct ?? 3.2) > 8.0 ? "Atrophy" : "Symmetric",
-                color: (report.limbScanData?.calfAsymmetryPct ?? 3.2) > 8.0 ? .red : .green
+                value: asymmetryValue,
+                status: asymmetryStatus,
+                color: asymmetryColor
             )
             
             BiomarkerTile(
                 title: "Rest Pain",
-                value: "\(report.patientProfile.restPainScore) / 10",
-                status: report.patientProfile.restPainScore >= 5 ? "Severe" : "Mild/None",
-                color: report.patientProfile.restPainScore >= 5 ? .red : .green
+                value: restPainValue,
+                status: restPainStatus,
+                color: restPainColor
             )
             
             BiomarkerTile(
                 title: "Walking Limit",
-                value: "\(Int(report.patientProfile.claudicationDistanceMeters)) m",
-                status: report.patientProfile.claudicationDistanceMeters < 100 ? "Severe Limit" : "Moderate",
-                color: report.patientProfile.claudicationDistanceMeters < 100 ? .red : .orange
+                value: walkingValue,
+                status: walkingStatus,
+                color: walkingColor
             )
         }
     }

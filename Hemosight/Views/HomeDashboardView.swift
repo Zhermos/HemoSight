@@ -252,7 +252,7 @@ public struct HomeDashboardView: View {
                 } label: {
                     HStack(spacing: 14) {
                         Circle()
-                            .fill(Color(hex: report.riskTier.colorHex))
+                            .fill(report.riskTier == .low ? Color.green : (report.riskTier == .moderate ? Color.orange : Color.red))
                             .frame(width: 10, height: 10)
                         
                         VStack(alignment: .leading, spacing: 2) {
