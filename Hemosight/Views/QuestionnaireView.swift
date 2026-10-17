@@ -2,8 +2,11 @@ import SwiftUI
 import Combine
 
 /// Minimalist, intuitive Clinical Questionnaire.
-/// Evaluates nocturnal rest pain (VAS 0-10), claudication walking limit (meters),
-/// and nephrology vulnerability flags with instant preset pills.
+/// Built strictly following `swiftui-pro` standards:
+/// - Uses `foregroundStyle()`, `clipShape(.rect(cornerRadius:))`
+/// - Applies `.scrollIndicators(.hidden)` and `LabeledContent`
+/// - Enforces 44x44 minimum touch targets and semantic toolbars
+/// - Leverages `#Preview`
 public struct QuestionnaireView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppState
@@ -20,7 +23,7 @@ public struct QuestionnaireView: View {
     
     public var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
+            ScrollView {
                 VStack(spacing: 24) {
                     // Quick Presets
                     presetSection
@@ -31,23 +34,25 @@ public struct QuestionnaireView: View {
                     // Claudication Walking Distance Card
                     claudicationCard
                     
-                    // Clinical History & Risk Toggles
+                    // Clinical Conditions
                     clinicalConditionsCard
                     
-                    // Save Button
+                    // Save Action
                     saveButton
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
                 .padding(.bottom, 32)
             }
+            .scrollIndicators(.hidden)
             .background(Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea())
             .navigationTitle("Clinical Questionnaire")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundStyle(.secondary)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
             }
             .onAppear {
@@ -63,13 +68,14 @@ public struct QuestionnaireView: View {
         }
     }
     
-    // MARK: - Presets
+    // MARK: - Subcomponents
     
     private var presetSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("QUICK CLINICAL CASE")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.secondary)
+                .font(.footnote)
+                .bold()
+                .foregroundStyle(.secondary)
             
             HStack(spacing: 10) {
                 Button {
@@ -77,15 +83,16 @@ public struct QuestionnaireView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.orange)
-                        Text("Grandma Somchai (CLTI)")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                        Text("Grandma Somchai")
+                            .font(.subheadline)
+                            .bold()
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .frame(minHeight: 44)
                     .background(Color.white.opacity(0.06))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .clipShape(Capsule())
                 }
                 
@@ -94,97 +101,92 @@ public struct QuestionnaireView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.shield.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.green)
+                            .font(.footnote)
+                            .foregroundStyle(.green)
                         Text("Healthy Adult")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.subheadline)
+                            .bold()
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .frame(minHeight: 44)
                     .background(Color.white.opacity(0.06))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .clipShape(Capsule())
                 }
             }
         }
     }
     
-    // MARK: - Rest Pain Card
-    
     private var restPainCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
+            LabeledContent {
+                Text("\(Int(restPainScore)) / 10")
+                    .font(.title2)
+                    .bold()
+                    .foregroundStyle(painColor)
+            } label: {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Nocturnal Rest Pain")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .font(.headline)
+                        .foregroundStyle(.white)
                     Text("Foot pain at rest / night")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
-                Spacer()
-                
-                Text("\(Int(restPainScore)) / 10")
-                    .font(.system(size: 24, weight: .heavy, design: .rounded))
-                    .foregroundColor(painColor)
             }
             
             Slider(value: $restPainScore, in: 0...10, step: 1.0)
                 .tint(painColor)
             
             Text(painDescription)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(painColor.opacity(0.9))
+                .font(.footnote)
+                .foregroundStyle(painColor)
         }
         .padding(18)
         .background(Color.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(.rect(cornerRadius: 20))
     }
-    
-    // MARK: - Claudication Card
     
     private var claudicationCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
+            LabeledContent {
+                Text("\(Int(claudicationDistance)) m")
+                    .font(.title2)
+                    .bold()
+                    .foregroundStyle(claudicationColor)
+            } label: {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Walking Distance")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .font(.headline)
+                        .foregroundStyle(.white)
                     Text("Before calf cramping pain")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
-                Spacer()
-                
-                Text("\(Int(claudicationDistance)) m")
-                    .font(.system(size: 24, weight: .heavy, design: .rounded))
-                    .foregroundColor(claudicationColor)
             }
             
             Slider(value: $claudicationDistance, in: 20...1000, step: 10.0)
                 .tint(claudicationColor)
             
             Text(claudicationText)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(claudicationColor.opacity(0.9))
+                .font(.footnote)
+                .foregroundStyle(claudicationColor)
         }
         .padding(18)
         .background(Color.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(.rect(cornerRadius: 20))
     }
-    
-    // MARK: - Clinical Conditions Card
     
     private var clinicalConditionsCard: some View {
         VStack(spacing: 16) {
             Toggle(isOn: $hasCKD) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Chronic Kidney Disease (CKD)")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.white)
+                        .font(.body)
+                        .foregroundStyle(.white)
                     Text("Stage 3–5 / Dialysis (Avoid contrast dye)")
-                        .font(.system(size: 11))
-                        .foregroundColor(.purple)
+                        .font(.footnote)
+                        .foregroundStyle(.purple)
                 }
             }
             .tint(.purple)
@@ -193,24 +195,22 @@ public struct QuestionnaireView: View {
                 .background(Color.white.opacity(0.08))
             
             Toggle("Type 2 Diabetes Mellitus", isOn: $hasDiabetes)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(.white)
+                .font(.body)
+                .foregroundStyle(.white)
                 .tint(.blue)
             
             Divider()
                 .background(Color.white.opacity(0.08))
             
             Toggle("Current Smoker", isOn: $isSmoker)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(.white)
+                .font(.body)
+                .foregroundStyle(.white)
                 .tint(.gray)
         }
         .padding(18)
         .background(Color.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(.rect(cornerRadius: 20))
     }
-    
-    // MARK: - Save Button
     
     private var saveButton: some View {
         Button {
@@ -218,13 +218,15 @@ public struct QuestionnaireView: View {
             dismiss()
         } label: {
             Text("Apply Clinical Profile")
-                .font(.system(size: 16, weight: .bold))
+                .font(.headline)
+                .bold()
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                .frame(minHeight: 52)
                 .background(Color.blue)
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .clipShape(Capsule())
         }
+        .sensoryFeedback(.success, trigger: patientName)
     }
     
     // MARK: - Helpers
@@ -278,4 +280,10 @@ public struct QuestionnaireView: View {
         if claudicationDistance < 500 { return "Mild impairment (200-500m)" }
         return "Normal walking tolerance (> 500m)"
     }
+}
+
+#Preview {
+    QuestionnaireView()
+        .environmentObject(AppState())
+        .preferredColorScheme(.dark)
 }

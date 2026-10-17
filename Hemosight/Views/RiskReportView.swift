@@ -1,8 +1,11 @@
 import SwiftUI
 
 /// Minimalist, Apple Health-inspired Clinical Triage Report View.
-/// Displays on-device ANE risk stratification, contrast-safety clearance,
-/// objective sensor biomarkers, and direct clinical recommendations.
+/// Built strictly following `swiftui-pro` standards:
+/// - Uses `foregroundStyle()`, `clipShape(.rect(cornerRadius:))`
+/// - Applies `.scrollIndicators(.hidden)` and semantic toolbars
+/// - Enforces 44x44 minimum touch targets
+/// - Leverages `#Preview`
 public struct RiskReportView: View {
     @Environment(\.dismiss) private var dismiss
     public let report: RiskReport
@@ -15,7 +18,7 @@ public struct RiskReportView: View {
     
     public var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
+            ScrollView {
                 VStack(spacing: 20) {
                     // MARK: - Hero Triage Card
                     heroTriageCard
@@ -39,23 +42,24 @@ public struct RiskReportView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 32)
             }
+            .scrollIndicators(.hidden)
             .background(Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea())
             .navigationTitle("Triage Report")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Share Report", systemImage: "square.and.arrow.up") {
                         showingShareSheet = true
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.blue)
                     }
+                    .labelStyle(.iconOnly)
+                    .foregroundStyle(.tint)
+                    .frame(minWidth: 44, minHeight: 44)
                 }
             }
             .sheet(isPresented: $showingShareSheet) {
@@ -64,104 +68,102 @@ public struct RiskReportView: View {
         }
     }
     
-    // MARK: - Hero Triage Card
+    // MARK: - Subcomponents
     
     private var heroTriageCard: some View {
         VStack(spacing: 16) {
             HStack {
                 Text(report.riskTier.shortCode)
-                    .font(.system(size: 11, weight: .heavy))
+                    .font(.footnote)
+                    .bold()
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .background(Color(hex: report.riskTier.colorHex).opacity(0.2))
-                    .foregroundColor(Color(hex: report.riskTier.colorHex))
+                    .foregroundStyle(Color(hex: report.riskTier.colorHex))
                     .clipShape(Capsule())
                 
                 Spacer()
                 
                 Text(report.timestamp.formatted(date: .abbreviated, time: .shortened))
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
             
             HStack(spacing: 16) {
                 Image(systemName: report.riskTier.iconName)
                     .font(.system(size: 40))
-                    .foregroundColor(Color(hex: report.riskTier.colorHex))
+                    .foregroundStyle(Color(hex: report.riskTier.colorHex))
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(report.riskTier.title)
-                        .font(.system(size: 20, weight: .heavy, design: .rounded))
-                        .foregroundColor(.white)
+                        .font(.title3)
+                        .bold()
+                        .foregroundStyle(.white)
                     
                     Text("\(Int(report.confidenceScore * 100))% Neural Engine Confidence")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .font(.footnote)
+                        .bold()
+                        .foregroundStyle(.secondary)
                     
                     Text("Patient: \(report.patientProfile.name) (Age \(report.patientProfile.age))")
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.8))
                 }
                 Spacer()
             }
         }
         .padding(20)
         .background(Color(hex: report.riskTier.colorHex).opacity(0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+        .clipShape(.rect(cornerRadius: 22))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22)
                 .stroke(Color(hex: report.riskTier.colorHex).opacity(0.3), lineWidth: 1.5)
-        )
+        }
     }
-    
-    // MARK: - CIN Safety Card
     
     private var cinSafetyCard: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "cross.vial.fill")
-                .foregroundColor(.purple)
-                .font(.system(size: 18))
+                .foregroundStyle(.purple)
+                .font(.headline)
             
             VStack(alignment: .leading, spacing: 3) {
                 Text("Zero-Contrast Protocol Verified")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.purple)
+                    .font(.subheadline)
+                    .bold()
+                    .foregroundStyle(.purple)
                 Text(report.contrastSafetyWarning)
-                    .font(.system(size: 11))
-                    .foregroundColor(.white.opacity(0.85))
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.85))
                     .lineSpacing(2)
             }
             Spacer()
         }
         .padding(14)
         .background(Color.purple.opacity(0.10))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(.rect(cornerRadius: 16))
     }
-    
-    // MARK: - Recommendation Card
     
     private var recommendationCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("RECOMMENDED CLINICAL ACTION")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(.secondary)
+                .font(.caption)
+                .bold()
+                .foregroundStyle(.secondary)
             
             Text(report.primaryRecommendation)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white)
+                .font(.subheadline)
+                .foregroundStyle(.white)
                 .lineSpacing(3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .background(Color.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(.rect(cornerRadius: 20))
     }
-    
-    // MARK: - Biomarkers 2x2 Grid
     
     private var biomarkersGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            // CRT
             BiomarkerTile(
                 title: "Digital CRT",
                 value: report.crtMeasurement?.formattedCRT ?? "2.10 s",
@@ -169,7 +171,6 @@ public struct RiskReportView: View {
                 color: (report.crtMeasurement?.crtSeconds ?? 2.1) < 2.0 ? .green : .red
             )
             
-            // Asymmetry
             BiomarkerTile(
                 title: "Calf Asymmetry",
                 value: report.limbScanData != nil ? String(format: "%.1f%%", report.limbScanData!.calfAsymmetryPct) : "3.2%",
@@ -177,7 +178,6 @@ public struct RiskReportView: View {
                 color: (report.limbScanData?.calfAsymmetryPct ?? 3.2) > 8.0 ? .red : .green
             )
             
-            // Rest Pain
             BiomarkerTile(
                 title: "Rest Pain",
                 value: "\(report.patientProfile.restPainScore) / 10",
@@ -185,7 +185,6 @@ public struct RiskReportView: View {
                 color: report.patientProfile.restPainScore >= 5 ? .red : .green
             )
             
-            // Walking Limit
             BiomarkerTile(
                 title: "Walking Limit",
                 value: "\(Int(report.patientProfile.claudicationDistanceMeters)) m",
@@ -195,13 +194,12 @@ public struct RiskReportView: View {
         }
     }
     
-    // MARK: - Evidence Section
-    
     private var evidenceSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("DIAGNOSTIC SYNTHESIS")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(.secondary)
+                .font(.caption)
+                .bold()
+                .foregroundStyle(.secondary)
             
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(report.detailedClinicalNotes, id: \.self) { note in
@@ -211,8 +209,8 @@ public struct RiskReportView: View {
                             .frame(width: 5, height: 5)
                             .padding(.top, 5)
                         Text(note)
-                            .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.85))
+                            .font(.footnote)
+                            .foregroundStyle(.white.opacity(0.85))
                     }
                 }
             }
@@ -220,10 +218,8 @@ public struct RiskReportView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .background(Color.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(.rect(cornerRadius: 20))
     }
-    
-    // MARK: - Export Button
     
     private var exportButton: some View {
         Button {
@@ -232,14 +228,16 @@ public struct RiskReportView: View {
             HStack {
                 Image(systemName: "square.and.arrow.up")
                 Text("Export Clinician Summary")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.headline)
+                    .bold()
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
+            .frame(minHeight: 52)
             .background(Color.white.opacity(0.08))
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .clipShape(Capsule())
         }
+        .sensoryFeedback(.selection, trigger: showingShareSheet)
     }
     
     private func generateSummaryText() -> String {
@@ -266,7 +264,7 @@ public struct RiskReportView: View {
     }
 }
 
-// MARK: - Minimal Biomarker Tile
+// MARK: - Biomarker Tile
 
 private struct BiomarkerTile: View {
     let title: String
@@ -277,26 +275,28 @@ private struct BiomarkerTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             
             Text(value)
-                .font(.system(size: 20, weight: .heavy, design: .rounded))
-                .foregroundColor(.white)
+                .font(.title3)
+                .bold()
+                .foregroundStyle(.white)
             
             HStack(spacing: 4) {
                 Circle()
                     .fill(color)
                     .frame(width: 5, height: 5)
                 Text(status)
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(color)
+                    .font(.caption)
+                    .bold()
+                    .foregroundStyle(color)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Color.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(.rect(cornerRadius: 16))
     }
 }
 
@@ -310,4 +310,9 @@ private struct ShareSheet: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+#Preview {
+    RiskReportView(report: RiskReport.sampleMock(tier: .critical))
+        .preferredColorScheme(.dark)
 }

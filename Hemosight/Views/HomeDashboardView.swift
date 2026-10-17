@@ -1,9 +1,12 @@
 import SwiftUI
 import Combine
 
-/// Minimalist, Apple Health-inspired Home Dashboard for Hemosight (ทัศนโลหิต).
-/// Features a streamlined 3-step screening workflow, high-contrast typography,
-/// non-invasive contrast-safety indicators, and instant on-device evaluation.
+/// Minimalist, Apple Health-inspired Home Dashboard for Hemosight.
+/// Built strictly following `swiftui-pro` standards:
+/// - Uses modern `foregroundStyle()` and `clipShape(.rect(cornerRadius:))`
+/// - Applies `.scrollIndicators(.hidden)` and semantic toolbars
+/// - Enforces 44x44 minimum tap areas, Dynamic Type, and sensory feedback
+/// - Leverages `#Preview`
 public struct HomeDashboardView: View {
     @EnvironmentObject private var appState: AppState
     
@@ -15,7 +18,6 @@ public struct HomeDashboardView: View {
     
     public init() {}
     
-    // Computed completion count (0 to 3)
     private var completedStepCount: Int {
         var count = 0
         if appState.currentCRT != nil { count += 1 }
@@ -26,30 +28,48 @@ public struct HomeDashboardView: View {
     
     public var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
+            ScrollView {
                 VStack(spacing: 24) {
-                    // MARK: - Patient Capsule & Zero-Contrast Badge
-                    topStatusHeader
+                    // Patient Header & Zero-Contrast Badge
+                    patientHeaderSection
                     
-                    // MARK: - Hero Progress & Title
-                    heroHeader
+                    // Hero Title & Progress
+                    heroHeaderSection
                     
-                    // MARK: - Minimal 3-Step Screening Cards
-                    screeningStepsSection
+                    // 3-Step Guided Screening Cards
+                    stepsSection
                     
-                    // MARK: - Primary Action Button
-                    evaluateButton
+                    // Primary Action
+                    analyzeButton
                     
-                    // MARK: - Recent Screenings (if any)
+                    // Historical Screenings
                     if !appState.historicalReports.isEmpty {
-                        recentHistorySection
+                        historySection
                     }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
                 .padding(.bottom, 32)
             }
+            .scrollIndicators(.hidden)
             .background(Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea())
+            .navigationTitle("Hemosight")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Label("Non-Invasive CLI Screening", systemImage: "waveform.path.ecg")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Switch Patient Profile", systemImage: "person.crop.circle.badge.plus") {
+                        showingPatientPicker = true
+                    }
+                    .labelStyle(.iconOnly)
+                    .foregroundStyle(.tint)
+                    .frame(minWidth: 44, minHeight: 44)
+                }
+            }
             .sheet(isPresented: $showingCRTScan) {
                 CRTScanView()
             }
@@ -79,87 +99,76 @@ public struct HomeDashboardView: View {
         }
     }
     
-    // MARK: - Top Status Header
+    // MARK: - Subviews
     
-    private var topStatusHeader: some View {
+    private var patientHeaderSection: some View {
         HStack {
-            // Patient selector capsule
             Button {
                 showingPatientPicker = true
             } label: {
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(Color.blue)
+                        .fill(.blue)
                         .frame(width: 8, height: 8)
                     Text(appState.currentPatient.name)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.white)
+                        .font(.subheadline)
+                        .bold()
+                        .foregroundStyle(.white)
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .font(.caption)
+                        .bold()
+                        .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 14)
-                .padding(.vertical, 8)
+                .padding(.vertical, 10)
                 .background(Color.white.opacity(0.08))
                 .clipShape(Capsule())
             }
+            .frame(minHeight: 44)
             
             Spacer()
             
-            // Contrast safety badge
-            HStack(spacing: 5) {
-                Image(systemName: "shield.checkered")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(appState.currentPatient.hasCKD ? .purple : .green)
-                Text(appState.currentPatient.hasCKD ? "CIN Safe" : "Non-Invasive")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(appState.currentPatient.hasCKD ? .purple : .green)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background((appState.currentPatient.hasCKD ? Color.purple : Color.green).opacity(0.12))
-            .clipShape(Capsule())
+            Label(appState.currentPatient.hasCKD ? "CIN Safe" : "Non-Invasive", systemImage: "shield.checkered")
+                .font(.caption)
+                .bold()
+                .foregroundStyle(appState.currentPatient.hasCKD ? Color.purple : Color.green)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background((appState.currentPatient.hasCKD ? Color.purple : Color.green).opacity(0.12))
+                .clipShape(Capsule())
         }
     }
     
-    // MARK: - Hero Header
-    
-    private var heroHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Hemosight")
-                        .font(.system(size: 34, weight: .heavy, design: .rounded))
-                        .foregroundColor(.white)
-                    Text("Limb Ischemia Screening")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-                
-                // Progress Counter
-                HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text("\(completedStepCount)")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                    Text("/3")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
-                .background(Color.white.opacity(0.06))
-                .cornerRadius(12)
+    private var heroHeaderSection: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Hemosight")
+                    .font(.system(size: 34, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("On-Device Limb Ischemia Screening")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
+            Spacer()
+            
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text("\(completedStepCount)")
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("/3")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Color.white.opacity(0.06))
+            .clipShape(.rect(cornerRadius: 12))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
     
-    // MARK: - 3-Step Screening Cards
-    
-    private var screeningStepsSection: some View {
+    private var stepsSection: some View {
         VStack(spacing: 12) {
-            // Step 1: CRT Perfusion
             MinimalStepCard(
                 stepNumber: "1",
                 title: "Capillary Refill (CRT)",
@@ -172,7 +181,6 @@ public struct HomeDashboardView: View {
                 showingCRTScan = true
             }
             
-            // Step 2: 3D LiDAR Morphometry
             MinimalStepCard(
                 stepNumber: "2",
                 title: "3D Limb Morphometry",
@@ -185,7 +193,6 @@ public struct HomeDashboardView: View {
                 showingLiDARScan = true
             }
             
-            // Step 3: Symptoms & Pain Questionnaire
             MinimalStepCard(
                 stepNumber: "3",
                 title: "Clinical Symptoms",
@@ -200,21 +207,20 @@ public struct HomeDashboardView: View {
         }
     }
     
-    // MARK: - Evaluate Button
-    
-    private var evaluateButton: some View {
+    private var analyzeButton: some View {
         Button {
             let report = appState.runEvaluation()
             showingReport = true
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: "cpu")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.headline)
                 Text("Analyze Limb Risk")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.headline)
+                    .bold()
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
+            .frame(minHeight: 52)
             .background(
                 LinearGradient(
                     colors: [Color(red: 0.15, green: 0.45, blue: 1.0), Color(red: 0.05, green: 0.30, blue: 0.85)],
@@ -222,20 +228,20 @@ public struct HomeDashboardView: View {
                     endPoint: .bottomTrailing
                 )
             )
-            .foregroundColor(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .shadow(color: Color.blue.opacity(0.35), radius: 14, x: 0, y: 6)
+            .foregroundStyle(.white)
+            .clipShape(.rect(cornerRadius: 18))
+            .shadow(color: Color.blue.opacity(0.35), radius: 12, x: 0, y: 5)
         }
+        .sensoryFeedback(.impact(weight: .medium), trigger: showingReport)
         .padding(.top, 4)
     }
     
-    // MARK: - Recent History Section
-    
-    private var recentHistorySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+    private var historySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
             Text("Previous Screenings")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(.secondary)
+                .font(.footnote)
+                .bold()
+                .foregroundStyle(.secondary)
                 .textCase(.uppercase)
                 .padding(.horizontal, 4)
             
@@ -251,27 +257,31 @@ public struct HomeDashboardView: View {
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text(report.riskTier.title)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(.white)
+                                .font(.subheadline)
+                                .bold()
+                                .foregroundStyle(.white)
                             Text(report.timestamp.formatted(date: .abbreviated, time: .shortened))
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                         
                         Spacer()
                         
                         Text("\(Int(report.confidenceScore * 100))% Conf.")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .font(.caption)
+                            .bold()
+                            .foregroundStyle(.secondary)
                         
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.secondary.opacity(0.6))
+                            .font(.caption)
+                            .bold()
+                            .foregroundStyle(.tertiary)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
+                    .frame(minHeight: 44)
                     .background(Color.white.opacity(0.04))
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .clipShape(.rect(cornerRadius: 16))
                 }
             }
         }
@@ -279,7 +289,7 @@ public struct HomeDashboardView: View {
     }
 }
 
-// MARK: - Minimal Step Card Component
+// MARK: - Minimal Step Card
 
 private struct MinimalStepCard: View {
     let stepNumber: String
@@ -294,75 +304,54 @@ private struct MinimalStepCard: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 16) {
-                // Circular icon
                 ZStack {
                     Circle()
                         .fill(accentColor.opacity(0.15))
                         .frame(width: 48, height: 48)
                     Image(systemName: icon)
-                        .font(.system(size: 20))
-                        .foregroundColor(accentColor)
+                        .font(.title3)
+                        .foregroundStyle(accentColor)
                 }
                 
-                // Title and subtitle
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .font(.body)
+                        .bold()
+                        .foregroundStyle(.white)
                     Text(subtitle)
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 
                 Spacer()
                 
-                // Status pill / checkmark
                 HStack(spacing: 6) {
                     Text(statusValue)
-                        .font(.system(size: 12, weight: isCompleted ? .semibold : .medium))
-                        .foregroundColor(isCompleted ? .white : .secondary)
+                        .font(.footnote)
+                        .bold()
+                        .foregroundStyle(isCompleted ? .white : .secondary)
                     
                     Image(systemName: isCompleted ? "checkmark.circle.fill" : "chevron.right")
-                        .font(.system(size: 14))
-                        .foregroundColor(isCompleted ? .green : .secondary.opacity(0.6))
+                        .font(.footnote)
+                        .foregroundStyle(isCompleted ? .green : .secondary)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 16)
+            .frame(minHeight: 64)
             .background(Color.white.opacity(0.05))
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(isCompleted ? accentColor.opacity(0.25) : Color.white.opacity(0.06), lineWidth: 1)
-            )
+            .clipShape(.rect(cornerRadius: 20))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(isCompleted ? accentColor.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
+            }
         }
+        .frame(minHeight: 44)
     }
 }
 
-// MARK: - Color Hex Initializer
-
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3:
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6:
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8:
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (1, 1, 1, 0)
-        }
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue:  Double(b) / 255,
-            opacity: Double(a) / 255
-        )
-    }
+#Preview {
+    HomeDashboardView()
+        .environmentObject(AppState())
+        .preferredColorScheme(.dark)
 }
