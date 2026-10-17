@@ -3,14 +3,14 @@ import Charts
 import AVFoundation
 import Combine
 
-/// Interactive Camera Viewfinder and real-time physiological perfusion waveform visualizer.
-/// Tracks toe nailbed blanching recovery and computes digital Capillary Refill Time (CRT).
+/// Minimalist, high-focus Digital CRT Optical Scanner.
+/// Features a clean viewfinder, toe nailbed reticle, live Swift Charts waveform,
+/// and intuitive single-button state progression.
 public struct CRTScanView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppState
     
     @StateObject private var cameraManager = CRTCameraManager()
-    @State private var showingDetails = false
     
     public init() {}
     
@@ -20,26 +20,44 @@ public struct CRTScanView: View {
                 Color.black.ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // MARK: - Camera Viewfinder / Preview
-                    viewfinderArea
-                        .frame(maxHeight: 340)
+                    // MARK: - Viewfinder Screen
+                    ZStack {
+                        if cameraManager.isSimulated {
+                            simulatedViewfinderBackground
+                        } else {
+                            CameraPreviewRepresentable(session: cameraManager.captureSession)
+                                .ignoresSafeArea()
+                        }
+                        
+                        // Centered Minimal Reticle
+                        nailbedReticle
+                        
+                        // Top Floating Guidance Pill
+                        VStack {
+                            guidancePill
+                                .padding(.top, 16)
+                            Spacer()
+                            liveReflectanceMetric
+                                .padding(.bottom, 12)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     
-                    // MARK: - Live Perfusion Waveform Chart
-                    waveformChartArea
-                    
-                    // MARK: - Controls & Guidance Bar
-                    bottomControlsArea
+                    // MARK: - Waveform & Bottom Panel
+                    bottomPerfusionPanel
                 }
             }
-            .navigationTitle("Digital CRT Optical Scan")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Close") {
+                    Button {
                         cameraManager.stopScanning()
                         dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white.opacity(0.6))
                     }
-                    .foregroundColor(.white)
                 }
                 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -47,7 +65,8 @@ public struct CRTScanView: View {
                         cameraManager.setTorch(enabled: !cameraManager.isTorchActive)
                     } label: {
                         Image(systemName: cameraManager.isTorchActive ? "bolt.fill" : "bolt.slash.fill")
-                            .foregroundColor(cameraManager.isTorchActive ? .yellow : .gray)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(cameraManager.isTorchActive ? .yellow : .white.opacity(0.6))
                     }
                 }
             }
@@ -61,208 +80,175 @@ public struct CRTScanView: View {
         }
     }
     
-    // MARK: - Viewfinder Area
+    // MARK: - UI Subcomponents
     
-    private var viewfinderArea: some View {
+    private var simulatedViewfinderBackground: some View {
         ZStack {
-            // Live Camera Feed or Animated Simulation Preview
-            if cameraManager.isSimulated {
-                simulatedCameraBackground
-            } else {
-                CameraPreviewRepresentable(session: cameraManager.captureSession)
-                    .ignoresSafeArea()
-            }
+            Color(red: 0.08, green: 0.08, blue: 0.10)
             
-            // ROI Reticle overlay over toe nailbed
-            VStack {
-                Spacer()
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(
-                            cameraManager.capturePhase == .compressing ? Color.orange :
-                            cameraManager.capturePhase == .releasing ? Color.green : Color.white.opacity(0.8),
-                            lineWidth: 3
-                        )
-                        .frame(width: 140, height: 140)
-                    
-                    // Center crosshair
-                    Image(systemName: "plus")
-                        .font(.title2)
-                        .foregroundColor(.white.opacity(0.6))
-                    
-                    Text("TOE NAILBED")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.white.opacity(0.8))
-                        .offset(y: 52)
-                }
-                Spacer()
-            }
-            
-            // Phase Guidance Pill Overlay
-            VStack {
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(phaseIndicatorColor)
-                        .frame(width: 10, height: 10)
-                    
-                    Text(cameraManager.capturePhase.rawValue)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(.ultraThinMaterial)
-                .cornerRadius(20)
-                .padding(.top, 12)
-                
-                Spacer()
-                
-                // Live Reflectance Intensity Gauge
-                HStack {
-                    Text("Reflectance I_R:")
-                        .font(.caption2)
-                        .foregroundColor(.white.opacity(0.7))
-                    Text(String(format: "%.3f", cameraManager.currentRedIntensity))
-                        .font(.caption)
-                        .fontWeight(.heavy)
-                        .monospacedDigit()
-                        .foregroundColor(.red)
-                    
-                    Spacer()
-                    
-                    if cameraManager.isSimulated {
-                        Text("SIMULATED 60 FPS")
-                            .font(.system(size: 8, weight: .bold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.yellow.opacity(0.3))
-                            .foregroundColor(.yellow)
-                            .cornerRadius(4)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-            }
-        }
-    }
-    
-    private var simulatedCameraBackground: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color(red: 0.15, green: 0.12, blue: 0.15), Color(red: 0.08, green: 0.06, blue: 0.10)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 Image(systemName: "foot.fill")
-                    .font(.system(size: 64))
-                    .foregroundColor(.white.opacity(0.15))
-                Text("Great Toe Macro Optical Feed")
-                    .font(.caption)
+                    .font(.system(size: 54))
+                    .foregroundColor(.white.opacity(0.12))
+                Text("Great Toe Macro Viewfinder")
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.secondary)
             }
         }
     }
     
-    // MARK: - Waveform Chart Area (Swift Charts)
+    private var nailbedReticle: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(
+                    cameraManager.capturePhase == .compressing ? Color.orange :
+                    cameraManager.capturePhase == .releasing ? Color.green : Color.white.opacity(0.7),
+                    lineWidth: 2.5
+                )
+                .frame(width: 130, height: 130)
+            
+            // Subtle center cross
+            Image(systemName: "plus")
+                .font(.system(size: 16, weight: .light))
+                .foregroundColor(.white.opacity(0.4))
+            
+            Text("TOE NAILBED")
+                .font(.system(size: 9, weight: .heavy))
+                .foregroundColor(.white.opacity(0.7))
+                .offset(y: 48)
+        }
+    }
     
-    private var waveformChartArea: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label("Microvascular Perfusion Curve", systemImage: "waveform.path.ecg")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.secondary)
-                
+    private var guidancePill: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(phaseColor)
+                .frame(width: 8, height: 8)
+            
+            Text(cameraManager.capturePhase.rawValue)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.white)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+        .clipShape(Capsule())
+    }
+    
+    private var liveReflectanceMetric: some View {
+        HStack {
+            Text("Reflectance I_R:")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+            Text(String(format: "%.3f", cameraManager.currentRedIntensity))
+                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .foregroundColor(.red)
+            Spacer()
+            
+            if cameraManager.isSimulated {
+                Text("SIMULATED")
+                    .font(.system(size: 9, weight: .heavy))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.yellow.opacity(0.2))
+                    .foregroundColor(.yellow)
+                    .clipShape(Capsule())
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    // MARK: - Bottom Perfusion Panel
+    
+    private var bottomPerfusionPanel: some View {
+        VStack(spacing: 16) {
+            // Header with live CRT reading
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Perfusion Waveform")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                }
                 Spacer()
                 
                 if let crt = cameraManager.latestMeasurement {
-                    Text("CRT: \(crt.formattedCRT)")
-                        .font(.subheadline)
-                        .fontWeight(.bold)
-                        .foregroundColor(crt.crtSeconds < 2.0 ? .green : (crt.crtSeconds <= 4.0 ? .orange : .red))
+                    HStack(spacing: 6) {
+                        Text(crt.formattedCRT)
+                            .font(.system(size: 20, weight: .heavy, design: .rounded))
+                            .foregroundColor(crt.crtSeconds < 2.0 ? .green : (crt.crtSeconds <= 4.0 ? .orange : .red))
+                        Text(crt.clinicalTier.localizedName)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(crt.crtSeconds < 2.0 ? .green : (crt.crtSeconds <= 4.0 ? .orange : .red))
+                    }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
+            .padding(.horizontal, 20)
             
+            // Minimal Swift Charts Waveform
             Chart {
-                ForEach(Array(cameraManager.waveformHistory.enumerated()), id: \.offset) { index, value in
+                ForEach(Array(cameraManager.waveformHistory.enumerated()), id: \.offset) { idx, val in
                     LineMark(
-                        x: .value("Frame", index),
-                        y: .value("Intensity", value)
+                        x: .value("Frame", idx),
+                        y: .value("I", val)
                     )
                     .interpolationMethod(.catmullRom)
                     .foregroundStyle(Color.red)
-                    .lineStyle(StrokeStyle(lineWidth: 2.2))
+                    .lineStyle(StrokeStyle(lineWidth: 2.5))
                     
                     AreaMark(
-                        x: .value("Frame", index),
-                        y: .value("Intensity", value)
+                        x: .value("Frame", idx),
+                        y: .value("I", val)
                     )
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.red.opacity(0.35), Color.red.opacity(0.02)],
+                            colors: [Color.red.opacity(0.3), Color.red.opacity(0.0)],
                             startPoint: .top,
                             endPoint: .bottom
                         )
                     )
                 }
                 
-                // Baseline rule
-                if let measurement = cameraManager.latestMeasurement {
-                    RuleMark(y: .value("90% Threshold", measurement.recoveryThresholdIntensity))
-                        .lineStyle(StrokeStyle(lineWidth: 1.0, dash: [4, 4]))
+                if let m = cameraManager.latestMeasurement {
+                    RuleMark(y: .value("90%", m.recoveryThresholdIntensity))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                         .foregroundStyle(Color.green)
-                        .annotation(position: .top, alignment: .trailing) {
-                            Text("90% Reperfusion")
-                                .font(.system(size: 9))
-                                .foregroundColor(.green)
-                        }
                 }
             }
-            .chartYScale(domain: 0.2...1.0)
+            .chartYScale(domain: 0.25...0.95)
             .chartXAxis(.hidden)
-            .chartYAxis {
-                AxisMarks(position: .trailing, values: [0.3, 0.5, 0.7, 0.9]) { value in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 2]))
-                        .foregroundStyle(Color.white.opacity(0.1))
-                    AxisValueLabel() {
-                        if let d = value.as(Double.self) {
-                            Text(String(format: "%.1f", d))
-                                .font(.system(size: 8))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 6)
+            .chartYAxis(.hidden)
+            .frame(height: 100)
+            .padding(.horizontal, 12)
+            
+            // Primary Action Pill
+            actionControlArea
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
         }
-        .background(Color(red: 0.10, green: 0.11, blue: 0.14))
+        .padding(.top, 16)
+        .background(Color(red: 0.07, green: 0.08, blue: 0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
     
-    // MARK: - Bottom Controls Area
+    // MARK: - Action Buttons
     
-    private var bottomControlsArea: some View {
-        VStack(spacing: 12) {
-            // Action buttons according to phase
+    private var actionControlArea: some View {
+        VStack(spacing: 10) {
             if cameraManager.capturePhase == .compressing {
                 Button {
                     cameraManager.triggerReleaseBlanching()
                 } label: {
                     HStack {
                         Image(systemName: "hand.tap.fill")
-                        Text("RELEASE PRESSURE NOW")
-                            .fontWeight(.bold)
+                        Text("Release Pressure Now")
+                            .font(.system(size: 16, weight: .bold))
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                    .padding(.vertical, 16)
                     .background(Color.green)
                     .foregroundColor(.black)
-                    .cornerRadius(12)
+                    .clipShape(Capsule())
                 }
             } else if cameraManager.capturePhase == .completed || cameraManager.latestMeasurement != nil {
                 Button {
@@ -274,14 +260,14 @@ public struct CRTScanView: View {
                 } label: {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
-                        Text("Accept & Save CRT Measurement")
-                            .fontWeight(.bold)
+                        Text("Save CRT Measurement")
+                            .font(.system(size: 16, weight: .bold))
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                    .padding(.vertical, 16)
                     .background(Color.blue)
                     .foregroundColor(.white)
-                    .cornerRadius(12)
+                    .clipShape(Capsule())
                 }
             } else {
                 HStack(spacing: 12) {
@@ -291,34 +277,32 @@ public struct CRTScanView: View {
                         HStack {
                             Image(systemName: "play.fill")
                             Text("Start Blanching Scan")
-                                .fontWeight(.semibold)
+                                .font(.system(size: 16, weight: .bold))
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                        .padding(.vertical, 16)
                         .background(Color.red)
                         .foregroundColor(.white)
-                        .cornerRadius(12)
+                        .clipShape(Capsule())
                     }
                     
+                    // Demo Simulation button
                     Button {
                         cameraManager.startSimulationStream()
                     } label: {
                         Image(systemName: "wand.and.stars")
-                            .font(.headline)
-                            .frame(width: 48, height: 48)
-                            .background(Color(red: 0.20, green: 0.22, blue: 0.28))
+                            .font(.system(size: 18))
+                            .frame(width: 52, height: 52)
+                            .background(Color.white.opacity(0.08))
                             .foregroundColor(.yellow)
-                            .cornerRadius(12)
+                            .clipShape(Circle())
                     }
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(Color(red: 0.08, green: 0.09, blue: 0.11))
     }
     
-    private var phaseIndicatorColor: Color {
+    private var phaseColor: Color {
         switch cameraManager.capturePhase {
         case .idle: return .gray
         case .acquiringBaseline: return .blue
@@ -331,7 +315,7 @@ public struct CRTScanView: View {
     }
 }
 
-// MARK: - CameraPreviewRepresentable (UIViewRepresentable for AVFoundation Preview Layer)
+// MARK: - Camera Preview Representable
 
 private struct CameraPreviewRepresentable: UIViewRepresentable {
     let session: AVCaptureSession
@@ -350,7 +334,6 @@ private class CameraPreviewView: UIView {
     override class var layerClass: AnyClass {
         return AVCaptureVideoPreviewLayer.self
     }
-    
     var videoPreviewLayer: AVCaptureVideoPreviewLayer {
         return layer as! AVCaptureVideoPreviewLayer
     }

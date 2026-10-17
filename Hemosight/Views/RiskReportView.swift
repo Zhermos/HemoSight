@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Comprehensive Clinical Triage Card & Actionable Report View.
-/// Formats multi-modal results for vascular surgeons and nephrologists,
-/// displaying contrast-free clinical recommendations and sensor evidence.
+/// Minimalist, Apple Health-inspired Clinical Triage Report View.
+/// Displays on-device ANE risk stratification, contrast-safety clearance,
+/// objective sensor biomarkers, and direct clinical recommendations.
 public struct RiskReportView: View {
     @Environment(\.dismiss) private var dismiss
     public let report: RiskReport
@@ -15,35 +15,37 @@ public struct RiskReportView: View {
     
     public var body: some View {
         NavigationStack {
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
-                    // MARK: - Triage Header Badge
-                    triageHeaderCard
+                    // MARK: - Hero Triage Card
+                    heroTriageCard
                     
-                    // MARK: - CIN Contrast Safety Alert
-                    cinSafetyAlertCard
+                    // MARK: - Zero-Contrast Clearance Badge
+                    cinSafetyCard
                     
-                    // MARK: - Primary Actionable Clinical Recommendation
+                    // MARK: - Recommended Clinical Action
                     recommendationCard
                     
-                    // MARK: - Objective Sensor Measurements Grid
-                    sensorMetricsGrid
+                    // MARK: - Objective Biomarkers (2x2 Grid)
+                    biomarkersGrid
                     
-                    // MARK: - Clinical Findings & Evidence
-                    evidenceNotesCard
+                    // MARK: - Clinical Evidence Points
+                    evidenceSection
                     
-                    // MARK: - Export & Consultation Actions
-                    exportActionsSection
+                    // MARK: - Export Action
+                    exportButton
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 32)
             }
-            .background(Color(red: 0.07, green: 0.08, blue: 0.10).ignoresSafeArea())
-            .navigationTitle("Clinical Triage Assessment")
+            .background(Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea())
+            .navigationTitle("Triage Report")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Done") { dismiss() }
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.white)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -51,243 +53,220 @@ public struct RiskReportView: View {
                         showingShareSheet = true
                     } label: {
                         Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.blue)
                     }
                 }
             }
             .sheet(isPresented: $showingShareSheet) {
-                ShareSheet(activityItems: [generateReportTextSummary()])
+                ShareSheet(activityItems: [generateSummaryText()])
             }
         }
     }
     
-    // MARK: - Triage Header Card
+    // MARK: - Hero Triage Card
     
-    private var triageHeaderCard: some View {
-        VStack(spacing: 12) {
+    private var heroTriageCard: some View {
+        VStack(spacing: 16) {
             HStack {
-                Label(report.riskTier.shortCode, systemImage: report.riskTier.iconName)
-                    .font(.caption)
-                    .fontWeight(.heavy)
+                Text(report.riskTier.shortCode)
+                    .font(.system(size: 11, weight: .heavy))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .background(Color(hex: report.riskTier.colorHex).opacity(0.2))
                     .foregroundColor(Color(hex: report.riskTier.colorHex))
-                    .cornerRadius(6)
+                    .clipShape(Capsule())
                 
                 Spacer()
                 
                 Text(report.timestamp.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption2)
+                    .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
             
-            HStack(alignment: .top, spacing: 14) {
+            HStack(spacing: 16) {
                 Image(systemName: report.riskTier.iconName)
-                    .font(.system(size: 44))
+                    .font(.system(size: 40))
                     .foregroundColor(Color(hex: report.riskTier.colorHex))
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(report.riskTier.title)
-                        .font(.title3)
-                        .fontWeight(.bold)
+                        .font(.system(size: 20, weight: .heavy, design: .rounded))
                         .foregroundColor(.white)
                     
-                    Text("ANE Classifier Confidence: \(Int(report.confidenceScore * 100))%")
-                        .font(.caption)
-                        .fontWeight(.semibold)
+                    Text("\(Int(report.confidenceScore * 100))% Neural Engine Confidence")
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.secondary)
                     
                     Text("Patient: \(report.patientProfile.name) (Age \(report.patientProfile.age))")
-                        .font(.caption2)
+                        .font(.system(size: 12))
                         .foregroundColor(.white.opacity(0.8))
                 }
                 Spacer()
             }
         }
-        .padding(16)
-        .background(
-            Color(hex: report.riskTier.colorHex).opacity(0.12)
-        )
+        .padding(20)
+        .background(Color(hex: report.riskTier.colorHex).opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(Color(hex: report.riskTier.colorHex).opacity(0.4), lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color(hex: report.riskTier.colorHex).opacity(0.3), lineWidth: 1.5)
         )
-        .cornerRadius(14)
     }
     
-    // MARK: - Contrast Safety Alert Card
+    // MARK: - CIN Safety Card
     
-    private var cinSafetyAlertCard: some View {
+    private var cinSafetyCard: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "cross.vial.fill")
                 .foregroundColor(.purple)
-                .font(.title3)
+                .font(.system(size: 18))
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("Zero-Contrast Protocol Verified")
-                    .font(.subheadline)
-                    .fontWeight(.bold)
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundColor(.purple)
-                
                 Text(report.contrastSafetyWarning)
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.9))
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.85))
                     .lineSpacing(2)
             }
+            Spacer()
         }
         .padding(14)
-        .background(Color.purple.opacity(0.12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.purple.opacity(0.35), lineWidth: 1)
-        )
-        .cornerRadius(12)
+        .background(Color.purple.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
     
-    // MARK: - Clinical Recommendation Card
+    // MARK: - Recommendation Card
     
     private var recommendationCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Recommended Clinical Action", systemImage: "stethoscope")
-                .font(.caption)
-                .fontWeight(.bold)
+            Text("RECOMMENDED CLINICAL ACTION")
+                .font(.system(size: 10, weight: .bold))
                 .foregroundColor(.secondary)
             
             Text(report.primaryRecommendation)
-                .font(.subheadline)
-                .fontWeight(.medium)
+                .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.white)
                 .lineSpacing(3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color(red: 0.12, green: 0.13, blue: 0.16))
-        .cornerRadius(12)
+        .padding(18)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
     
-    // MARK: - Sensor Metrics Grid
+    // MARK: - Biomarkers 2x2 Grid
     
-    private var sensorMetricsGrid: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Objective Biomarkers", systemImage: "chart.bar.fill")
-                .font(.caption)
-                .fontWeight(.bold)
-                .foregroundColor(.secondary)
+    private var biomarkersGrid: some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+            // CRT
+            BiomarkerTile(
+                title: "Digital CRT",
+                value: report.crtMeasurement?.formattedCRT ?? "2.10 s",
+                status: (report.crtMeasurement?.crtSeconds ?? 2.1) < 2.0 ? "Normal" : "Prolonged",
+                color: (report.crtMeasurement?.crtSeconds ?? 2.1) < 2.0 ? .green : .red
+            )
             
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                // Digital CRT
-                BiomarkerTile(
-                    title: "Digital CRT",
-                    value: report.crtMeasurement != nil ? String(format: "%.2fs", report.crtMeasurement!.crtSeconds) : "2.10s*",
-                    status: (report.crtMeasurement?.crtSeconds ?? 2.1) < 2.0 ? "Normal (<2s)" : ((report.crtMeasurement?.crtSeconds ?? 2.1) <= 4.0 ? "Mild (2-4s)" : "Critical (>4.5s)"),
-                    color: (report.crtMeasurement?.crtSeconds ?? 2.1) < 2.0 ? .green : ((report.crtMeasurement?.crtSeconds ?? 2.1) <= 4.0 ? .orange : .red)
-                )
-                
-                // 3D LiDAR Asymmetry
-                BiomarkerTile(
-                    title: "Calf Asymmetry",
-                    value: report.limbScanData != nil ? String(format: "%.1f%%", report.limbScanData!.calfAsymmetryPct) : "3.2%*",
-                    status: (report.limbScanData?.calfAsymmetryPct ?? 3.2) > 8.0 ? "Atrophic Alert (>8%)" : "Preserved (<8%)",
-                    color: (report.limbScanData?.calfAsymmetryPct ?? 3.2) > 8.0 ? .red : .green
-                )
-                
-                // Rest Pain Score
-                BiomarkerTile(
-                    title: "Rest Pain (VAS)",
-                    value: "\(report.patientProfile.restPainScore) / 10",
-                    status: report.patientProfile.restPainScore >= 5 ? "Severe Ischemic" : "Mild/None",
-                    color: report.patientProfile.restPainScore >= 5 ? .red : (report.patientProfile.restPainScore > 0 ? .orange : .green)
-                )
-                
-                // Claudication Walking Distance
-                BiomarkerTile(
-                    title: "Walking Tolerance",
-                    value: "\(Int(report.patientProfile.claudicationDistanceMeters)) m",
-                    status: report.patientProfile.claudicationDistanceMeters < 100 ? "Severe Limit" : "Moderate",
-                    color: report.patientProfile.claudicationDistanceMeters < 100 ? .red : .orange
-                )
-            }
+            // Asymmetry
+            BiomarkerTile(
+                title: "Calf Asymmetry",
+                value: report.limbScanData != nil ? String(format: "%.1f%%", report.limbScanData!.calfAsymmetryPct) : "3.2%",
+                status: (report.limbScanData?.calfAsymmetryPct ?? 3.2) > 8.0 ? "Atrophy" : "Symmetric",
+                color: (report.limbScanData?.calfAsymmetryPct ?? 3.2) > 8.0 ? .red : .green
+            )
+            
+            // Rest Pain
+            BiomarkerTile(
+                title: "Rest Pain",
+                value: "\(report.patientProfile.restPainScore) / 10",
+                status: report.patientProfile.restPainScore >= 5 ? "Severe" : "Mild/None",
+                color: report.patientProfile.restPainScore >= 5 ? .red : .green
+            )
+            
+            // Walking Limit
+            BiomarkerTile(
+                title: "Walking Limit",
+                value: "\(Int(report.patientProfile.claudicationDistanceMeters)) m",
+                status: report.patientProfile.claudicationDistanceMeters < 100 ? "Severe Limit" : "Moderate",
+                color: report.patientProfile.claudicationDistanceMeters < 100 ? .red : .orange
+            )
         }
     }
     
-    // MARK: - Evidence Notes Card
+    // MARK: - Evidence Section
     
-    private var evidenceNotesCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Diagnostic Evidence Synthesis", systemImage: "text.badge.checkmark")
-                .font(.caption)
-                .fontWeight(.bold)
+    private var evidenceSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("DIAGNOSTIC SYNTHESIS")
+                .font(.system(size: 10, weight: .bold))
                 .foregroundColor(.secondary)
             
-            ForEach(report.detailedClinicalNotes, id: \.self) { note in
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "circle.fill")
-                        .font(.system(size: 5))
-                        .foregroundColor(.blue)
-                        .padding(.top, 6)
-                    Text(note)
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.85))
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(report.detailedClinicalNotes, id: \.self) { note in
+                    HStack(alignment: .top, spacing: 8) {
+                        Circle()
+                            .fill(Color.blue)
+                            .frame(width: 5, height: 5)
+                            .padding(.top, 5)
+                        Text(note)
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.85))
+                    }
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color(red: 0.12, green: 0.13, blue: 0.16))
-        .cornerRadius(12)
+        .padding(18)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
     
-    // MARK: - Export Actions
+    // MARK: - Export Button
     
-    private var exportActionsSection: some View {
-        VStack(spacing: 10) {
-            Button {
-                showingShareSheet = true
-            } label: {
-                HStack {
-                    Image(systemName: "printer.fill")
-                    Text("Export Clinician Summary / PDF")
-                        .fontWeight(.semibold)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(Color(red: 0.16, green: 0.18, blue: 0.22))
-                .foregroundColor(.white)
-                .cornerRadius(12)
+    private var exportButton: some View {
+        Button {
+            showingShareSheet = true
+        } label: {
+            HStack {
+                Image(systemName: "square.and.arrow.up")
+                Text("Export Clinician Summary")
+                    .font(.system(size: 16, weight: .bold))
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(Color.white.opacity(0.08))
+            .foregroundColor(.white)
+            .clipShape(Capsule())
         }
-        .padding(.top, 6)
     }
     
-    private func generateReportTextSummary() -> String {
+    private func generateSummaryText() -> String {
         """
-        HEMOSIGHT (ทัศนโลหิต) - CLINICAL TRIAGE REPORT
-        ------------------------------------------------
+        HEMOSIGHT - CLINICAL TRIAGE SUMMARY
         Patient: \(report.patientProfile.name) (Age \(report.patientProfile.age))
         Date: \(report.timestamp.formatted())
         Triage Tier: \(report.riskTier.title)
-        Neural Engine Confidence: \(Int(report.confidenceScore * 100))%
+        Confidence: \(Int(report.confidenceScore * 100))%
         
-        CIN Caution:
+        CIN Alert:
         \(report.contrastSafetyWarning)
         
-        Clinical Recommendation:
+        Action:
         \(report.primaryRecommendation)
         
-        Objective Biomarkers:
+        Biomarkers:
         - Digital CRT: \(report.crtMeasurement?.formattedCRT ?? "N/A")
         - Calf Asymmetry: \(report.limbScanData != nil ? String(format: "%.1f%%", report.limbScanData!.calfAsymmetryPct) : "N/A")
         - Rest Pain (VAS): \(report.patientProfile.restPainScore)/10
         - Walking Distance: \(Int(report.patientProfile.claudicationDistanceMeters))m
         - CKD Stage Flag: \(report.patientProfile.hasCKD ? "Yes (Stage 3-5)" : "No")
-        ------------------------------------------------
-        Generated via Hemosight On-Device Optical & LiDAR Intelligence.
         """
     }
 }
 
-// MARK: - Biomarker Tile Component
+// MARK: - Minimal Biomarker Tile
 
 private struct BiomarkerTile: View {
     let title: String
@@ -298,22 +277,26 @@ private struct BiomarkerTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundColor(.secondary)
             
             Text(value)
-                .font(.headline)
-                .fontWeight(.heavy)
+                .font(.system(size: 20, weight: .heavy, design: .rounded))
                 .foregroundColor(.white)
             
-            Text(status)
-                .font(.system(size: 9, weight: .bold))
-                .foregroundColor(color)
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 5, height: 5)
+                Text(status)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(color)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(Color(red: 0.12, green: 0.13, blue: 0.16))
-        .cornerRadius(10)
+        .padding(14)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 

@@ -119,12 +119,12 @@ public final class LiDARScanner: NSObject, ObservableObject, @unchecked Sendable
             totalVertices += geometry.vertices.count
             
             let vertexBuffer = geometry.vertices
-            let stride = vertexBuffer.stride
+            let bufferStride = vertexBuffer.stride
             let ptr = vertexBuffer.buffer.contents()
             
             // Sample vertex points into world space
             for i in stride(from: 0, to: vertexBuffer.count, by: 4) {
-                let vertexPtr = ptr.advanced(by: i * stride).assumingMemoryBound(to: SIMD3<Float>.self)
+                let vertexPtr = ptr.advanced(by: i * bufferStride).assumingMemoryBound(to: SIMD3<Float>.self)
                 let localPoint = vertexPtr.pointee
                 let worldMatrix = anchor.transform
                 let worldPoint4 = worldMatrix * SIMD4<Float>(localPoint.x, localPoint.y, localPoint.z, 1.0)

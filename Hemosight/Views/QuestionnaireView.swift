@@ -1,9 +1,9 @@
 import SwiftUI
 import Combine
 
-/// Patient Symptoms & Clinical History Questionnaire
-/// Evaluates Fontaine / Rutherford stages (Claudication distance, nocturnal rest pain)
-/// and flags contrast-sensitive renal vulnerability (CKD Stage 3–5).
+/// Minimalist, intuitive Clinical Questionnaire.
+/// Evaluates nocturnal rest pain (VAS 0-10), claudication walking limit (meters),
+/// and nephrology vulnerability flags with instant preset pills.
 public struct QuestionnaireView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppState
@@ -20,148 +20,34 @@ public struct QuestionnaireView: View {
     
     public var body: some View {
         NavigationStack {
-            Form {
-                // MARK: - Clinical Preset Quick-Loader
-                Section("Clinical Case Presets (Hackathon Demo)") {
-                    Button {
-                        loadProfile(PatientProfile.elderlyDialysisPatient)
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Grandma Somchai (High-Risk Dialysis / CLTI)")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                                Text("Age 74 • CKD Stage 4 • Rest Pain 7/10 • Claudication 45m")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "bolt.fill")
-                                .foregroundColor(.orange)
-                        }
-                    }
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    // Quick Presets
+                    presetSection
                     
-                    Button {
-                        loadProfile(PatientProfile.standardHealthyAdult)
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Healthy Cohort Volunteer")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                                Text("Age 52 • Normal Kidneys • Pain 0/10 • Walking >800m")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "checkmark.shield.fill")
-                                .foregroundColor(.green)
-                        }
-                    }
+                    // Nocturnal Rest Pain Card
+                    restPainCard
+                    
+                    // Claudication Walking Distance Card
+                    claudicationCard
+                    
+                    // Clinical History & Risk Toggles
+                    clinicalConditionsCard
+                    
+                    // Save Button
+                    saveButton
                 }
-                
-                // MARK: - Patient Demographics & Renal Status
-                Section("Demographics & Nephrology Risk") {
-                    TextField("Patient Identifier", text: $patientName)
-                    
-                    Stepper("Age: \(age) years", value: $age, in: 30...105)
-                    
-                    Toggle(isOn: $hasCKD) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Chronic Kidney Disease (Stage 3–5 / Dialysis)")
-                                .fontWeight(.medium)
-                            Text("Severe CIN risk: Angiography contrast contraindicated")
-                                .font(.caption2)
-                                .foregroundColor(.orange)
-                        }
-                    }
-                    .tint(.purple)
-                    
-                    Toggle("Type 2 Diabetes Mellitus", isOn: $hasDiabetes)
-                        .tint(.blue)
-                    
-                    Toggle("Active Tobacco Smoking", isOn: $isSmoker)
-                        .tint(.gray)
-                }
-                
-                // MARK: - Nocturnal Rest Pain (Fontaine III)
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Nocturnal Foot Rest Pain")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                            Spacer()
-                            Text("\(Int(restPainScore)) / 10")
-                                .font(.headline)
-                                .fontWeight(.heavy)
-                                .foregroundColor(restPainColor)
-                        }
-                        
-                        Slider(value: $restPainScore, in: 0...10, step: 1.0)
-                            .tint(restPainColor)
-                        
-                        Text(restPainDescription)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.vertical, 4)
-                } header: {
-                    Text("Microvascular Rest Pain Assessment")
-                } footer: {
-                    Text("Rest pain that awakens patient or requires hanging feet over the bedside indicates critical limb ischemia.")
-                }
-                
-                // MARK: - Claudication Walking Distance (Fontaine II)
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Pain-Free Walking Distance")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                            Spacer()
-                            Text("\(Int(claudicationDistance)) meters")
-                                .font(.headline)
-                                .fontWeight(.heavy)
-                                .foregroundColor(claudicationColor)
-                        }
-                        
-                        Slider(value: $claudicationDistance, in: 20...1000, step: 10.0)
-                            .tint(claudicationColor)
-                        
-                        HStack {
-                            Text("Rutherford Grade:")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            Text(claudicationCategory)
-                                .font(.caption2)
-                                .fontWeight(.bold)
-                                .foregroundColor(claudicationColor)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                } header: {
-                    Text("Intermittent Claudication Distance")
-                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 32)
             }
-            .scrollContentBackground(.hidden)
-            .background(Color(red: 0.07, green: 0.08, blue: 0.10).ignoresSafeArea())
+            .background(Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea())
             .navigationTitle("Clinical Questionnaire")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
-                        .foregroundColor(.white)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") {
-                        saveProfile()
-                        dismiss()
-                    }
-                    .fontWeight(.bold)
-                    .foregroundColor(.blue)
+                        .foregroundColor(.white.opacity(0.6))
                 }
             }
             .onAppear {
@@ -177,16 +63,180 @@ public struct QuestionnaireView: View {
         }
     }
     
-    // MARK: - Logic Helpers
+    // MARK: - Presets
     
-    private func loadProfile(_ profile: PatientProfile) {
-        self.patientName = profile.name
-        self.age = profile.age
-        self.hasCKD = profile.hasCKD
-        self.hasDiabetes = profile.hasDiabetes
-        self.isSmoker = profile.isSmoker
-        self.restPainScore = Double(profile.restPainScore)
-        self.claudicationDistance = profile.claudicationDistanceMeters
+    private var presetSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("QUICK CLINICAL CASE")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.secondary)
+            
+            HStack(spacing: 10) {
+                Button {
+                    loadProfile(PatientProfile.elderlyDialysisPatient)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.orange)
+                        Text("Grandma Somchai (CLTI)")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.06))
+                    .foregroundColor(.white)
+                    .clipShape(Capsule())
+                }
+                
+                Button {
+                    loadProfile(PatientProfile.standardHealthyAdult)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.shield.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.green)
+                        Text("Healthy Adult")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.06))
+                    .foregroundColor(.white)
+                    .clipShape(Capsule())
+                }
+            }
+        }
+    }
+    
+    // MARK: - Rest Pain Card
+    
+    private var restPainCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Nocturnal Rest Pain")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                    Text("Foot pain at rest / night")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                
+                Text("\(Int(restPainScore)) / 10")
+                    .font(.system(size: 24, weight: .heavy, design: .rounded))
+                    .foregroundColor(painColor)
+            }
+            
+            Slider(value: $restPainScore, in: 0...10, step: 1.0)
+                .tint(painColor)
+            
+            Text(painDescription)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(painColor.opacity(0.9))
+        }
+        .padding(18)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+    
+    // MARK: - Claudication Card
+    
+    private var claudicationCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Walking Distance")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                    Text("Before calf cramping pain")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                
+                Text("\(Int(claudicationDistance)) m")
+                    .font(.system(size: 24, weight: .heavy, design: .rounded))
+                    .foregroundColor(claudicationColor)
+            }
+            
+            Slider(value: $claudicationDistance, in: 20...1000, step: 10.0)
+                .tint(claudicationColor)
+            
+            Text(claudicationText)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(claudicationColor.opacity(0.9))
+        }
+        .padding(18)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+    
+    // MARK: - Clinical Conditions Card
+    
+    private var clinicalConditionsCard: some View {
+        VStack(spacing: 16) {
+            Toggle(isOn: $hasCKD) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Chronic Kidney Disease (CKD)")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.white)
+                    Text("Stage 3–5 / Dialysis (Avoid contrast dye)")
+                        .font(.system(size: 11))
+                        .foregroundColor(.purple)
+                }
+            }
+            .tint(.purple)
+            
+            Divider()
+                .background(Color.white.opacity(0.08))
+            
+            Toggle("Type 2 Diabetes Mellitus", isOn: $hasDiabetes)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(.white)
+                .tint(.blue)
+            
+            Divider()
+                .background(Color.white.opacity(0.08))
+            
+            Toggle("Current Smoker", isOn: $isSmoker)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(.white)
+                .tint(.gray)
+        }
+        .padding(18)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+    
+    // MARK: - Save Button
+    
+    private var saveButton: some View {
+        Button {
+            saveProfile()
+            dismiss()
+        } label: {
+            Text("Apply Clinical Profile")
+                .font(.system(size: 16, weight: .bold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .clipShape(Capsule())
+        }
+    }
+    
+    // MARK: - Helpers
+    
+    private func loadProfile(_ p: PatientProfile) {
+        self.patientName = p.name
+        self.age = p.age
+        self.hasCKD = p.hasCKD
+        self.hasDiabetes = p.hasDiabetes
+        self.isSmoker = p.isSmoker
+        self.restPainScore = Double(p.restPainScore)
+        self.claudicationDistance = p.claudicationDistanceMeters
     }
     
     private func saveProfile() {
@@ -201,19 +251,18 @@ public struct QuestionnaireView: View {
         )
     }
     
-    private var restPainColor: Color {
+    private var painColor: Color {
         if restPainScore < 3 { return .green }
         if restPainScore < 6 { return .orange }
         return .red
     }
     
-    private var restPainDescription: String {
+    private var painDescription: String {
         switch Int(restPainScore) {
-        case 0: return "0: No foot pain at rest"
-        case 1...3: return "1–3: Mild occasional ache, resolves spontaneously"
-        case 4...6: return "4–6: Disturbing pain at night, relieved by dependency"
-        case 7...10: return "7–10: Severe agonizing ischemic pain, inability to sleep"
-        default: return ""
+        case 0: return "No foot pain at rest"
+        case 1...3: return "Mild occasional aching"
+        case 4...6: return "Disturbing nocturnal pain"
+        default: return "Severe ischemic pain (Feet hung off bed)"
         }
     }
     
@@ -223,10 +272,10 @@ public struct QuestionnaireView: View {
         return .red
     }
     
-    private var claudicationCategory: String {
-        if claudicationDistance < 50 { return "Severe (< 50m) - Fontaine IIb" }
-        if claudicationDistance < 200 { return "Moderate (50-200m) - Fontaine IIb" }
-        if claudicationDistance < 500 { return "Mild (200-500m) - Fontaine IIa" }
-        return "Asymptomatic / Normal (> 500m)"
+    private var claudicationText: String {
+        if claudicationDistance < 50 { return "Severe impairment (< 50m)" }
+        if claudicationDistance < 200 { return "Moderate impairment (50-200m)" }
+        if claudicationDistance < 500 { return "Mild impairment (200-500m)" }
+        return "Normal walking tolerance (> 500m)"
     }
 }
