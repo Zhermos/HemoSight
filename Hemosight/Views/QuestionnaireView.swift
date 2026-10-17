@@ -45,7 +45,7 @@ public struct QuestionnaireView: View {
                 .padding(.bottom, 32)
             }
             .scrollIndicators(.hidden)
-            .background(Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea())
+            .background(Color.pastelBackground.ignoresSafeArea())
             .navigationTitle("Clinical Questionnaire")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -84,7 +84,7 @@ public struct QuestionnaireView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.footnote)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.pastelPeach)
                         Text("Grandma Somchai")
                             .font(.subheadline)
                             .bold()
@@ -102,7 +102,7 @@ public struct QuestionnaireView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.shield.fill")
                             .font(.footnote)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Color.pastelMint)
                         Text("Healthy Adult")
                             .font(.subheadline)
                             .bold()
@@ -186,10 +186,10 @@ public struct QuestionnaireView: View {
                         .foregroundStyle(.white)
                     Text("Stage 3–5 / Dialysis (Avoid contrast dye)")
                         .font(.footnote)
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(Color.pastelLilac)
                 }
             }
-            .tint(.purple)
+            .tint(Color.pastelLilac)
             
             Divider()
                 .background(Color.white.opacity(0.08))
@@ -197,7 +197,7 @@ public struct QuestionnaireView: View {
             Toggle("Type 2 Diabetes Mellitus", isOn: $hasDiabetes)
                 .font(.body)
                 .foregroundStyle(.white)
-                .tint(.blue)
+                .tint(Color.pastelPeriwinkle)
             
             Divider()
                 .background(Color.white.opacity(0.08))
@@ -222,7 +222,7 @@ public struct QuestionnaireView: View {
                 .bold()
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 52)
-                .background(Color.blue)
+                .background(Color.pastelPeriwinkle)
                 .foregroundStyle(.white)
                 .clipShape(Capsule())
         }
@@ -254,9 +254,9 @@ public struct QuestionnaireView: View {
     }
     
     private var painColor: Color {
-        if restPainScore < 3 { return .green }
-        if restPainScore < 6 { return .orange }
-        return .red
+        if restPainScore < 3 { return Color.pastelMint }
+        if restPainScore < 6 { return Color.pastelPeach }
+        return Color.pastelRose
     }
     
     private var painDescription: String {
@@ -269,9 +269,9 @@ public struct QuestionnaireView: View {
     }
     
     private var claudicationColor: Color {
-        if claudicationDistance > 400 { return .green }
-        if claudicationDistance > 150 { return .orange }
-        return .red
+        if claudicationDistance > 400 { return Color.pastelMint }
+        if claudicationDistance > 150 { return Color.pastelPeach }
+        return Color.pastelRose
     }
     
     private var claudicationText: String {

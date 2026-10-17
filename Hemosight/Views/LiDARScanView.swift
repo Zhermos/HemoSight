@@ -89,12 +89,12 @@ public struct LiDARScanView: View {
     
     private var simulatedViewportBackground: some View {
         ZStack {
-            Color(red: 0.06, green: 0.08, blue: 0.12)
+            Color.pastelBackground
             
             VStack(spacing: 12) {
                 Image(systemName: "cube.transparent")
                     .font(.system(size: 48))
-                    .foregroundStyle(.cyan.opacity(0.3))
+                    .foregroundStyle(Color.pastelIceBlue.opacity(0.35))
                 Text("LiDAR 3D Point Cloud")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -106,26 +106,26 @@ public struct LiDARScanView: View {
         HStack(spacing: 36) {
             VStack(spacing: 6) {
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(scanner.currentStep == .scanningLeft ? Color.cyan : Color.white.opacity(0.2), lineWidth: 2)
+                    .stroke(scanner.currentStep == .scanningLeft ? Color.pastelIceBlue : Color.white.opacity(0.2), lineWidth: 2)
                     .frame(width: 80, height: 160)
-                    .background(scanner.currentStep == .scanningLeft ? Color.cyan.opacity(0.08) : Color.clear)
+                    .background(scanner.currentStep == .scanningLeft ? Color.pastelIceBlue.opacity(0.12) : Color.clear)
                     .clipShape(.rect(cornerRadius: 16))
                 Text("LEFT")
                     .font(.caption)
                     .bold()
-                    .foregroundStyle(scanner.currentStep == .scanningLeft ? .cyan : .secondary)
+                    .foregroundStyle(scanner.currentStep == .scanningLeft ? Color.pastelIceBlue : .secondary)
             }
             
             VStack(spacing: 6) {
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(scanner.currentStep == .scanningRight ? Color.cyan : Color.white.opacity(0.2), lineWidth: 2)
+                    .stroke(scanner.currentStep == .scanningRight ? Color.pastelIceBlue : Color.white.opacity(0.2), lineWidth: 2)
                     .frame(width: 80, height: 160)
-                    .background(scanner.currentStep == .scanningRight ? Color.cyan.opacity(0.08) : Color.clear)
+                    .background(scanner.currentStep == .scanningRight ? Color.pastelIceBlue.opacity(0.12) : Color.clear)
                     .clipShape(.rect(cornerRadius: 16))
                 Text("RIGHT")
                     .font(.caption)
                     .bold()
-                    .foregroundStyle(scanner.currentStep == .scanningRight ? .cyan : .secondary)
+                    .foregroundStyle(scanner.currentStep == .scanningRight ? Color.pastelIceBlue : .secondary)
             }
         }
     }
@@ -163,6 +163,7 @@ public struct LiDARScanView: View {
                 .background(Color.white.opacity(0.04))
                 .clipShape(.rect(cornerRadius: 16))
                 
+                let asymColor = scanner.liveCalfAsymmetryPct > 8.0 ? Color.pastelRose : (scanner.liveCalfAsymmetryPct > 0 ? Color.pastelMint : Color.secondary)
                 VStack(spacing: 4) {
                     Text("ASYMMETRY")
                         .font(.caption2)
@@ -171,11 +172,11 @@ public struct LiDARScanView: View {
                     Text(String(format: "%.1f%%", scanner.liveCalfAsymmetryPct))
                         .font(.title2)
                         .bold()
-                        .foregroundStyle(scanner.liveCalfAsymmetryPct > 8.0 ? .red : (scanner.liveCalfAsymmetryPct > 0 ? .green : .secondary))
+                        .foregroundStyle(asymColor)
                     Text(scanner.liveCalfAsymmetryPct > 8.0 ? "Atrophy" : "Normal")
                         .font(.caption)
                         .bold()
-                        .foregroundStyle(scanner.liveCalfAsymmetryPct > 8.0 ? .red : .green)
+                        .foregroundStyle(asymColor)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
@@ -207,7 +208,7 @@ public struct LiDARScanView: View {
                 .padding(.bottom, 16)
         }
         .padding(.top, 16)
-        .background(Color(red: 0.07, green: 0.08, blue: 0.10))
+        .background(Color.pastelBackground)
         .clipShape(.rect(cornerRadius: 28))
     }
     
@@ -226,8 +227,8 @@ public struct LiDARScanView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: 52)
-                    .background(Color.cyan)
-                    .foregroundStyle(.black)
+                    .background(Color.pastelIceBlue)
+                    .foregroundStyle(.black.opacity(0.85))
                     .clipShape(Capsule())
                 }
                 .sensoryFeedback(.impact(weight: .light), trigger: scanner.currentStep)
@@ -244,7 +245,7 @@ public struct LiDARScanView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: 52)
-                    .background(Color.blue)
+                    .background(Color.pastelPeriwinkle)
                     .foregroundStyle(.white)
                     .clipShape(Capsule())
                 }
@@ -271,8 +272,8 @@ public struct LiDARScanView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: 52)
-                    .background(Color.green)
-                    .foregroundStyle(.black)
+                    .background(Color.pastelMint)
+                    .foregroundStyle(.black.opacity(0.85))
                     .clipShape(Capsule())
                 }
                 .sensoryFeedback(.success, trigger: scanner.currentStep)

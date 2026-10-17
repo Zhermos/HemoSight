@@ -49,17 +49,17 @@ public struct RiskReport: Identifiable, Codable, Sendable {
         
         public var colorHex: String {
             switch self {
-            case .low: return "#34C759"      // Apple System Green
-            case .moderate: return "#FF9500" // Apple System Orange
-            case .critical: return "#FF3B30" // Apple System Red
+            case .low: return "#84CDAE"      // Soft Pastel Mint
+            case .moderate: return "#F1BA8A" // Soft Pastel Peach
+            case .critical: return "#EB8A90" // Soft Pastel Rose
             }
         }
         
         public var themeColor: Color {
             switch self {
-            case .low: return .green
-            case .moderate: return .orange
-            case .critical: return .red
+            case .low: return .pastelMint
+            case .moderate: return .pastelPeach
+            case .critical: return .pastelRose
             }
         }
         
@@ -152,3 +152,17 @@ public struct RiskReport: Identifiable, Codable, Sendable {
         )
     }
 }
+
+// MARK: - Pastel Theme Color Tokens
+
+extension Color {
+    public static let pastelMint = Color(red: 0.52, green: 0.80, blue: 0.68)       // Calm soft sage/mint
+    public static let pastelPeach = Color(red: 0.94, green: 0.72, blue: 0.54)      // Soft apricot/peach
+    public static let pastelRose = Color(red: 0.92, green: 0.56, blue: 0.58)       // Soft blush rose/coral
+    public static let pastelPeriwinkle = Color(red: 0.58, green: 0.68, blue: 0.92) // Soft slate periwinkle
+    public static let pastelLilac = Color(red: 0.74, green: 0.68, blue: 0.88)      // Soft herbal lilac
+    public static let pastelButtercup = Color(red: 0.95, green: 0.85, blue: 0.62)  // Soft warm buttercup
+    public static let pastelIceBlue = Color(red: 0.60, green: 0.78, blue: 0.90)    // Soft powder/ice blue
+    public static let pastelBackground = Color(red: 0.08, green: 0.09, blue: 0.11) // Warm deep charcoal slate
+}
+

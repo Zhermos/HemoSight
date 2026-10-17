@@ -86,7 +86,7 @@ public struct CRTScanView: View {
     
     private var simulatedViewfinderBackground: some View {
         ZStack {
-            Color(red: 0.08, green: 0.08, blue: 0.10)
+            Color.pastelBackground
             
             VStack(spacing: 12) {
                 Image(systemName: "foot.fill")
@@ -103,8 +103,8 @@ public struct CRTScanView: View {
         ZStack {
             RoundedRectangle(cornerRadius: 22)
                 .stroke(
-                    cameraManager.capturePhase == .compressing ? Color.orange :
-                    cameraManager.capturePhase == .releasing ? Color.green : Color.white.opacity(0.7),
+                    cameraManager.capturePhase == .compressing ? Color.pastelPeach :
+                    cameraManager.capturePhase == .releasing ? Color.pastelMint : Color.white.opacity(0.7),
                     lineWidth: 2.5
                 )
                 .frame(width: 130, height: 130)
@@ -147,7 +147,7 @@ public struct CRTScanView: View {
                 .font(.subheadline)
                 .bold()
                 .monospacedDigit()
-                .foregroundStyle(.red)
+                .foregroundStyle(Color.pastelRose)
             Spacer()
             
             if cameraManager.isSimulated {
@@ -156,8 +156,8 @@ public struct CRTScanView: View {
                     .bold()
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.yellow.opacity(0.2))
-                    .foregroundStyle(.yellow)
+                    .background(Color.pastelButtercup.opacity(0.18))
+                    .foregroundStyle(Color.pastelButtercup)
                     .clipShape(Capsule())
             }
         }
@@ -175,15 +175,16 @@ public struct CRTScanView: View {
                 Spacer()
                 
                 if let crt = cameraManager.latestMeasurement {
+                    let metricColor = crt.crtSeconds < 2.0 ? Color.pastelMint : (crt.crtSeconds <= 4.0 ? Color.pastelPeach : Color.pastelRose)
                     HStack(spacing: 6) {
                         Text(crt.formattedCRT)
                             .font(.title3)
                             .bold()
-                            .foregroundStyle(crt.crtSeconds < 2.0 ? .green : (crt.crtSeconds <= 4.0 ? .orange : .red))
+                            .foregroundStyle(metricColor)
                         Text(crt.clinicalTier.localizedName)
                             .font(.footnote)
                             .bold()
-                            .foregroundStyle(crt.crtSeconds < 2.0 ? .green : (crt.crtSeconds <= 4.0 ? .orange : .red))
+                            .foregroundStyle(metricColor)
                     }
                 }
             }
@@ -196,7 +197,7 @@ public struct CRTScanView: View {
                         y: .value("Intensity", val)
                     )
                     .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Color.red)
+                    .foregroundStyle(Color.pastelRose)
                     .lineStyle(StrokeStyle(lineWidth: 2.5))
                     
                     AreaMark(
@@ -205,7 +206,7 @@ public struct CRTScanView: View {
                     )
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.red.opacity(0.35), Color.red.opacity(0.0)],
+                            colors: [Color.pastelRose.opacity(0.25), Color.pastelRose.opacity(0.0)],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -215,7 +216,7 @@ public struct CRTScanView: View {
                 if let m = cameraManager.latestMeasurement {
                     RuleMark(y: .value("90%", m.recoveryThresholdIntensity))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                        .foregroundStyle(Color.green)
+                        .foregroundStyle(Color.pastelMint)
                 }
             }
             .chartYScale(domain: 0.25...0.95)
@@ -229,7 +230,7 @@ public struct CRTScanView: View {
                 .padding(.bottom, 16)
         }
         .padding(.top, 16)
-        .background(Color(red: 0.07, green: 0.08, blue: 0.10))
+        .background(Color.pastelBackground)
         .clipShape(.rect(cornerRadius: 28))
     }
     
@@ -247,8 +248,8 @@ public struct CRTScanView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: 52)
-                    .background(Color.green)
-                    .foregroundStyle(.black)
+                    .background(Color.pastelMint)
+                    .foregroundStyle(.black.opacity(0.85))
                     .clipShape(Capsule())
                 }
                 .sensoryFeedback(.impact(weight: .heavy), trigger: cameraManager.capturePhase)
@@ -268,7 +269,7 @@ public struct CRTScanView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: 52)
-                    .background(Color.blue)
+                    .background(Color.pastelPeriwinkle)
                     .foregroundStyle(.white)
                     .clipShape(Capsule())
                 }
@@ -286,7 +287,7 @@ public struct CRTScanView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .frame(minHeight: 52)
-                        .background(Color.red)
+                        .background(Color.pastelRose)
                         .foregroundStyle(.white)
                         .clipShape(Capsule())
                     }
@@ -299,7 +300,7 @@ public struct CRTScanView: View {
                             .font(.title3)
                             .frame(width: 52, height: 52)
                             .background(Color.white.opacity(0.08))
-                            .foregroundStyle(.yellow)
+                            .foregroundStyle(Color.pastelButtercup)
                             .clipShape(Circle())
                     }
                     .frame(minWidth: 44, minHeight: 44)
@@ -310,13 +311,13 @@ public struct CRTScanView: View {
     
     private var phaseColor: Color {
         switch cameraManager.capturePhase {
-        case .idle: return .gray
-        case .acquiringBaseline: return .blue
-        case .compressing: return .orange
-        case .releasing: return .green
-        case .calculating: return .purple
-        case .completed: return .green
-        case .failed: return .red
+        case .idle: return .secondary
+        case .acquiringBaseline: return .pastelPeriwinkle
+        case .compressing: return .pastelPeach
+        case .releasing: return .pastelMint
+        case .calculating: return .pastelLilac
+        case .completed: return .pastelMint
+        case .failed: return .pastelRose
         }
     }
 }

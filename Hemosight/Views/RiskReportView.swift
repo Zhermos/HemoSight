@@ -43,7 +43,7 @@ public struct RiskReportView: View {
                 .padding(.bottom, 32)
             }
             .scrollIndicators(.hidden)
-            .background(Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea())
+            .background(Color.pastelBackground.ignoresSafeArea())
             .navigationTitle("Triage Report")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -71,11 +71,7 @@ public struct RiskReportView: View {
     // MARK: - Subcomponents
     
     private var tierColor: Color {
-        switch report.riskTier {
-        case .low: return .green
-        case .moderate: return .orange
-        case .critical: return .red
-        }
+        report.riskTier.themeColor
     }
     
     private var heroTriageCard: some View {
@@ -132,14 +128,14 @@ public struct RiskReportView: View {
     private var cinSafetyCard: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "cross.vial.fill")
-                .foregroundStyle(.purple)
+                .foregroundStyle(Color.pastelLilac)
                 .font(.headline)
             
             VStack(alignment: .leading, spacing: 3) {
                 Text("Zero-Contrast Protocol Verified")
                     .font(.subheadline)
                     .bold()
-                    .foregroundStyle(.purple)
+                    .foregroundStyle(Color.pastelLilac)
                 Text(report.contrastSafetyWarning)
                     .font(.footnote)
                     .foregroundStyle(.white.opacity(0.85))
@@ -148,7 +144,7 @@ public struct RiskReportView: View {
             Spacer()
         }
         .padding(14)
-        .background(Color.purple.opacity(0.10))
+        .background(Color.pastelLilac.opacity(0.12))
         .clipShape(.rect(cornerRadius: 16))
     }
     
@@ -183,7 +179,7 @@ public struct RiskReportView: View {
     
     private var crtColor: Color {
         let sec = report.crtMeasurement?.crtSeconds ?? 2.1
-        return sec < 2.0 ? .green : .red
+        return sec < 2.0 ? Color.pastelMint : Color.pastelRose
     }
     
     private var asymmetryValue: String {
@@ -200,7 +196,7 @@ public struct RiskReportView: View {
     
     private var asymmetryColor: Color {
         let pct = report.limbScanData?.calfAsymmetryPct ?? 3.2
-        return pct > 8.0 ? .red : .green
+        return pct > 8.0 ? Color.pastelRose : Color.pastelMint
     }
     
     private var restPainValue: String {
@@ -212,7 +208,7 @@ public struct RiskReportView: View {
     }
     
     private var restPainColor: Color {
-        report.patientProfile.restPainScore >= 5 ? .red : .green
+        report.patientProfile.restPainScore >= 5 ? Color.pastelRose : Color.pastelMint
     }
     
     private var walkingValue: String {
@@ -224,7 +220,7 @@ public struct RiskReportView: View {
     }
     
     private var walkingColor: Color {
-        report.patientProfile.claudicationDistanceMeters < 100 ? .red : .orange
+        report.patientProfile.claudicationDistanceMeters < 100 ? Color.pastelRose : Color.pastelPeach
     }
     
     private var biomarkersGrid: some View {
@@ -270,7 +266,7 @@ public struct RiskReportView: View {
                 ForEach(report.detailedClinicalNotes, id: \.self) { note in
                     HStack(alignment: .top, spacing: 8) {
                         Circle()
-                            .fill(Color.blue)
+                            .fill(Color.pastelPeriwinkle)
                             .frame(width: 5, height: 5)
                             .padding(.top, 5)
                         Text(note)

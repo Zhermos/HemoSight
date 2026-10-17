@@ -52,7 +52,7 @@ public struct HomeDashboardView: View {
                 .padding(.bottom, 32)
             }
             .scrollIndicators(.hidden)
-            .background(Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea())
+            .background(Color.pastelBackground.ignoresSafeArea())
             .navigationTitle("Hemosight")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -108,7 +108,7 @@ public struct HomeDashboardView: View {
             } label: {
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(.blue)
+                        .fill(Color.pastelPeriwinkle)
                         .frame(width: 8, height: 8)
                     Text(appState.currentPatient.name)
                         .font(.subheadline)
@@ -121,7 +121,7 @@ public struct HomeDashboardView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(Color.white.opacity(0.08))
+                .background(Color.white.opacity(0.06))
                 .clipShape(Capsule())
             }
             .frame(minHeight: 44)
@@ -131,10 +131,10 @@ public struct HomeDashboardView: View {
             Label(appState.currentPatient.hasCKD ? "CIN Safe" : "Non-Invasive", systemImage: "shield.checkered")
                 .font(.caption)
                 .bold()
-                .foregroundStyle(appState.currentPatient.hasCKD ? Color.purple : Color.green)
+                .foregroundStyle(appState.currentPatient.hasCKD ? Color.pastelLilac : Color.pastelMint)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background((appState.currentPatient.hasCKD ? Color.purple : Color.green).opacity(0.12))
+                .background((appState.currentPatient.hasCKD ? Color.pastelLilac : Color.pastelMint).opacity(0.14))
                 .clipShape(Capsule())
         }
     }
@@ -174,7 +174,7 @@ public struct HomeDashboardView: View {
                 title: "Capillary Refill (CRT)",
                 subtitle: "60 FPS nailbed blanching curve",
                 icon: "drop.fill",
-                accentColor: .red,
+                accentColor: .pastelRose,
                 isCompleted: appState.currentCRT != nil,
                 statusValue: appState.currentCRT != nil ? appState.currentCRT!.formattedCRT : "Tap to scan"
             ) {
@@ -186,7 +186,7 @@ public struct HomeDashboardView: View {
                 title: "3D Limb Morphometry",
                 subtitle: "Bilateral calf & ankle asymmetry",
                 icon: "camera.metering.matrix",
-                accentColor: .blue,
+                accentColor: .pastelIceBlue,
                 isCompleted: appState.currentLimbScan != nil,
                 statusValue: appState.currentLimbScan != nil ? String(format: "Δ %.1f%%", appState.currentLimbScan!.calfAsymmetryPct) : "Tap to scan"
             ) {
@@ -198,7 +198,7 @@ public struct HomeDashboardView: View {
                 title: "Clinical Symptoms",
                 subtitle: "Rest pain score & walking limit",
                 icon: "list.clipboard.fill",
-                accentColor: .purple,
+                accentColor: .pastelLilac,
                 isCompleted: true,
                 statusValue: "Pain \(appState.currentPatient.restPainScore)/10 • \(Int(appState.currentPatient.claudicationDistanceMeters))m"
             ) {
@@ -223,14 +223,14 @@ public struct HomeDashboardView: View {
             .frame(minHeight: 52)
             .background(
                 LinearGradient(
-                    colors: [Color(red: 0.15, green: 0.45, blue: 1.0), Color(red: 0.05, green: 0.30, blue: 0.85)],
+                    colors: [Color.pastelPeriwinkle, Color(red: 0.46, green: 0.56, blue: 0.82)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
             )
             .foregroundStyle(.white)
             .clipShape(.rect(cornerRadius: 18))
-            .shadow(color: Color.blue.opacity(0.35), radius: 12, x: 0, y: 5)
+            .shadow(color: Color.pastelPeriwinkle.opacity(0.25), radius: 10, x: 0, y: 4)
         }
         .sensoryFeedback(.impact(weight: .medium), trigger: showingReport)
         .padding(.top, 4)
@@ -252,7 +252,7 @@ public struct HomeDashboardView: View {
                 } label: {
                     HStack(spacing: 14) {
                         Circle()
-                            .fill(report.riskTier == .low ? Color.green : (report.riskTier == .moderate ? Color.orange : Color.red))
+                            .fill(report.riskTier.themeColor)
                             .frame(width: 10, height: 10)
                         
                         VStack(alignment: .leading, spacing: 2) {
@@ -333,7 +333,7 @@ private struct MinimalStepCard: View {
                     
                     Image(systemName: isCompleted ? "checkmark.circle.fill" : "chevron.right")
                         .font(.footnote)
-                        .foregroundStyle(isCompleted ? .green : .secondary)
+                        .foregroundStyle(isCompleted ? Color.pastelMint : .secondary)
                 }
             }
             .padding(.horizontal, 16)
