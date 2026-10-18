@@ -56,7 +56,7 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
     private let sessionQueue = DispatchQueue(label: "com.hemosight.camera.sessionQueue", qos: .userInitiated)
     
     private var isConfigured = false
-    private let scanStartTimeLock = OSAllocatedUnfairLock<UInt64?>(initialState: nil)
+    private let scanStartTimeLock = OSAllocatedUnfairLock<TimeInterval?>(initialState: nil)
     
     // Real-time publishers
     public let sampleSubject = PassthroughSubject<PPGDataPoint, Never>()
@@ -82,7 +82,7 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
                         try self.configureSession()
                         self.isConfigured = true
                     }
-                    self.scanStartTimeLock.withLock { $0 = ProcessInfo.processInfo.uptimeNanoseconds }
+                    self.scanStartTimeLock.withLock { $0 = ProcessInfo.processInfo.systemUptime }
                     self.captureSession.startRunning()
                     continuation.resume()
                 } catch {
@@ -262,9 +262,8 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
         
         let timestamp: Double = scanStartTimeLock.withLock { start in
             if let start = start {
-                let current = ProcessInfo.processInfo.uptimeNanoseconds
-                let elapsedNano = current >= start ? (current - start) : 0
-                return Double(elapsedNano) / 1_000_000_000.0
+                let current = ProcessInfo.processInfo.systemUptime
+                return max(0.0, current - start)
             } else {
                 return 0.0
             }
