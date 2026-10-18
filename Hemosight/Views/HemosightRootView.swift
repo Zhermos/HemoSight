@@ -94,15 +94,35 @@ public struct HemosightRootView: View {
                     }
                 }
                 
-                // Trailing: Compact Reset Workflow Button ("รีเซ็ต" / "Reset")
+                // Trailing: Help Tutorial Button (?) & Reset Workflow Button
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(HemosightStrings.reset(for: viewModel.language)) {
-                        viewModel.restartWorkflow()
+                    HStack(spacing: 12) {
+                        Button {
+                            viewModel.isShowingTutorial = true
+                        } label: {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 19, weight: .semibold))
+                                .foregroundStyle(.blue)
+                        }
+                        .accessibilityLabel(HemosightStrings.helpButtonAccessibilityLabel(for: viewModel.language))
+                        
+                        Button(HemosightStrings.reset(for: viewModel.language)) {
+                            viewModel.restartWorkflow()
+                        }
+                        .appFont(size: 14, weight: .medium)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel(HemosightStrings.resetAccessibilityHint(for: viewModel.language))
                     }
-                    .appFont(size: 14, weight: .medium)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel(HemosightStrings.resetAccessibilityHint(for: viewModel.language))
                 }
+            }
+        }
+        .sheet(isPresented: $viewModel.isShowingTutorial) {
+            TutorialSheetView(isPresented: $viewModel.isShowingTutorial)
+                .environment(\.appLanguage, viewModel.language)
+        }
+        .onAppear {
+            if !viewModel.hideTutorialOnLaunch {
+                viewModel.isShowingTutorial = true
             }
         }
         .environment(\.appLanguage, viewModel.language)

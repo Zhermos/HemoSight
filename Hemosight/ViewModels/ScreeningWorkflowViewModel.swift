@@ -50,6 +50,13 @@ public final class ScreeningWorkflowViewModel {
     public var isProcessing: Bool = false
     public var errorMessage: String?
     
+    // Tutorial Onboarding State
+    public var isShowingTutorial: Bool = false
+    public var hideTutorialOnLaunch: Bool {
+        get { UserDefaults.standard.bool(forKey: "hide_tutorial_on_launch") }
+        set { UserDefaults.standard.set(newValue, forKey: "hide_tutorial_on_launch") }
+    }
+    
     // Patient Data
     public var patientName: String = "Eleanor Vance"
     public var patientAge: Int = 74
@@ -109,6 +116,9 @@ public final class ScreeningWorkflowViewModel {
         if let storedLang = UserDefaults.standard.string(forKey: "app_language"),
            let appLang = AppLanguage(rawValue: storedLang) {
             self.language = appLang
+        }
+        if !UserDefaults.standard.bool(forKey: "hide_tutorial_on_launch") {
+            self.isShowingTutorial = true
         }
         bindCameraStreams()
     }
@@ -432,7 +442,8 @@ extension ScreeningWorkflowViewModel {
         contactState: CameraContactState = .optimal,
         errorMessage: String? = nil,
         language: AppLanguage = .english,
-        liveBPM: Int? = nil
+        liveBPM: Int? = nil,
+        isShowingTutorial: Bool = false
     ) -> ScreeningWorkflowViewModel {
         let vm = ScreeningWorkflowViewModel()
         vm.language = language
@@ -443,6 +454,7 @@ extension ScreeningWorkflowViewModel {
         vm.currentContactState = contactState
         vm.errorMessage = errorMessage
         vm.liveBPM = liveBPM ?? (isRecordingPPG ? 72 : nil)
+        vm.isShowingTutorial = isShowingTutorial
         if isRecordingPPG {
             vm.scanSecondsRemaining = 18
             vm.liveWaveformPoints = (0..<50).map { i in
