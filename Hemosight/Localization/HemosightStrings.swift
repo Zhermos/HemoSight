@@ -33,6 +33,39 @@ public enum HemosightStrings {
         }
     }
     
+    // MARK: - Step Completion & Navigation
+    
+    public static func backButton(for language: AppLanguage) -> String {
+        language == .thai ? "ย้อนกลับ" : "Back"
+    }
+    
+    public static func retestButton(for language: AppLanguage) -> String {
+        language == .thai ? "วัดซ้ำ (ทำใหม่)" : "Retest / Scan Again"
+    }
+    
+    public static func proceedToNextStepButton(for step: ScreeningStep, language: AppLanguage) -> String {
+        switch step {
+        case .step1FingerPPG:
+            return language == .thai ? "บันทึกและไปตรวจนิ้วเท้าถัดไป" : "Save & Proceed to Toe Pulse"
+        case .step2ToePPG:
+            return language == .thai ? "บันทึกและดูผลการประเมิน" : "Save & View Clinical Results"
+        case .step3Dashboard:
+            return language == .thai ? "เสร็จสิ้น" : "Done"
+        }
+    }
+    
+    public static func scanCompletedTitle(for site: PPGSite, language: AppLanguage) -> String {
+        language == .thai 
+            ? "บันทึกสัญญาณชีพจรเรียบร้อยแล้ว" 
+            : "Pulse Signal Recorded Successfully"
+    }
+    
+    public static func scanCompletedSubtitle(for language: AppLanguage) -> String {
+        language == .thai 
+            ? "ตรวจสอบสัญญาณด้านบน หากคลื่นชีพจรชัดเจนให้กดไปขั้นตอนถัดไป หรือกดวัดซ้ำหากต้องการบันทึกใหม่" 
+            : "Review waveform above. Tap proceed if clear, or retest if you need to record again."
+    }
+    
     // MARK: - Workflow Stepper
     
     public static func stepperShortName(for step: ScreeningStep, language: AppLanguage) -> String {
@@ -274,6 +307,18 @@ public enum HemosightStrings {
         case .english: return "Cancel Scan"
         case .thai: return "ยกเลิกการสแกน"
         }
+    }
+    
+    // MARK: - Motion Artifact Detection
+    
+    public static func motionWarningLabel(for language: AppLanguage) -> String {
+        language == .thai ? "ตรวจพบการเคลื่อนไหว — กรุณาอยู่นิ่งๆ" : "Motion Detected — Please Keep Still"
+    }
+    
+    public static func motionExcessiveNotice(for language: AppLanguage) -> String {
+        language == .thai 
+            ? "มีการขยับตัวบ่อยระหว่างตรวจ แนะนำให้กดวัดซ้ำเพื่อให้ผลตรวจแม่นยำที่สุด" 
+            : "Frequent motion detected during scan. Retesting is recommended for clinical accuracy."
     }
     
     // MARK: - Step 4: Clinical Results Dashboard

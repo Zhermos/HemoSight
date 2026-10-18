@@ -4,34 +4,46 @@ import SwiftUI
 
 public struct WorkflowStepperHeader: View {
     public let currentStep: ScreeningStep
+    public var onSelectStep: ((ScreeningStep) -> Void)?
     @Environment(\.appLanguage) private var appLanguage
     
-    public init(currentStep: ScreeningStep) {
+    public init(currentStep: ScreeningStep, onSelectStep: ((ScreeningStep) -> Void)? = nil) {
         self.currentStep = currentStep
+        self.onSelectStep = onSelectStep
     }
     
     public var body: some View {
         HStack(spacing: 6) {
             ForEach(ScreeningStep.allCases) { step in
-                VStack(spacing: 4) {
-                    Circle()
-                        .fill(stepCircleColor(for: step))
-                        .frame(width: 28, height: 28)
-                        .overlay {
-                            Text("\(step.rawValue)")
-                                .appFont(size: 14, weight: .bold)
-                                .foregroundStyle(step.rawValue <= currentStep.rawValue ? Color.white : Color.secondary)
-                        }
-                    
-                    Text(HemosightStrings.stepperShortName(for: step, language: appLanguage))
-                        .appFont(size: appLanguage == .thai ? 11 : 10, weight: step == currentStep ? .bold : .regular)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .foregroundStyle(step == currentStep ? Color.primary : Color.secondary)
-                        .toneMarkSafePadding(.horizontal, 2)
+                let isPast = step.rawValue < currentStep.rawValue
+                
+                Button {
+                    if isPast {
+                        onSelectStep?(step)
+                    }
+                } label: {
+                    VStack(spacing: 4) {
+                        Circle()
+                            .fill(stepCircleColor(for: step))
+                            .frame(width: 28, height: 28)
+                            .overlay {
+                                Text("\(step.rawValue)")
+                                    .appFont(size: 14, weight: .bold)
+                                    .foregroundStyle(step.rawValue <= currentStep.rawValue ? Color.white : Color.secondary)
+                            }
+                        
+                        Text(HemosightStrings.stepperShortName(for: step, language: appLanguage))
+                            .appFont(size: appLanguage == .thai ? 11 : 10, weight: step == currentStep ? .bold : .regular)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .foregroundStyle(step == currentStep ? Color.primary : Color.secondary)
+                            .toneMarkSafePadding(.horizontal, 2)
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.plain)
+                .disabled(!isPast)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(
                     HemosightStrings.stepperProgressAccessibility(
@@ -41,6 +53,7 @@ public struct WorkflowStepperHeader: View {
                         language: appLanguage
                     )
                 )
+                .accessibilityHint(isPast ? (appLanguage == .thai ? "แตะเพื่อย้อนกลับไปที่ขั้นตอนนี้" : "Tap to navigate back to this step") : "")
                 
                 if step != ScreeningStep.allCases.last {
                     Rectangle()

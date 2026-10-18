@@ -11,9 +11,11 @@ public struct HemosightRootView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Header Progress Stepper (Elderly Accessible)
-                WorkflowStepperHeader(currentStep: viewModel.currentStep)
-                    .padding(.horizontal)
-                    .padding(.top, 8)
+                WorkflowStepperHeader(currentStep: viewModel.currentStep) { selectedStep in
+                    viewModel.navigateToStep(selectedStep)
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
                 
                 Divider()
                     .padding(.vertical, 8)
@@ -42,35 +44,52 @@ public struct HemosightRootView: View {
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // Leading: Compact Language Switcher Pill ("🇹🇭 TH ▾" or "🇺🇸 EN ▾")
+                // Leading: Optional Back Button & Compact Language Switcher Pill
                 ToolbarItem(placement: .topBarLeading) {
-                    Menu {
-                        ForEach(AppLanguage.allCases) { lang in
+                    HStack(spacing: 8) {
+                        if viewModel.currentStep.rawValue > 1 {
                             Button {
-                                viewModel.language = lang
+                                viewModel.navigateBack()
                             } label: {
-                                HStack {
-                                    Text("\(lang.flagEmoji) \(lang.displayName)")
-                                    if viewModel.language == lang {
-                                        Image(systemName: "checkmark")
+                                HStack(spacing: 3) {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 14, weight: .bold))
+                                    Text(HemosightStrings.backButton(for: viewModel.language))
+                                        .appFont(size: 14, weight: .semibold)
+                                }
+                                .foregroundStyle(.blue)
+                            }
+                            .accessibilityLabel(HemosightStrings.backButton(for: viewModel.language))
+                        }
+                        
+                        Menu {
+                            ForEach(AppLanguage.allCases) { lang in
+                                Button {
+                                    viewModel.language = lang
+                                } label: {
+                                    HStack {
+                                        Text("\(lang.flagEmoji) \(lang.displayName)")
+                                        if viewModel.language == lang {
+                                            Image(systemName: "checkmark")
+                                        }
                                     }
                                 }
                             }
+                        } label: {
+                            HStack(spacing: 3) {
+                                Text(viewModel.language.flagEmoji)
+                                Text(viewModel.language.shortLabel)
+                                    .appFont(size: 12, weight: .bold)
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 8, weight: .bold))
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Color.blue.opacity(0.12))
+                            .clipShape(Capsule())
                         }
-                    } label: {
-                        HStack(spacing: 3) {
-                            Text(viewModel.language.flagEmoji)
-                            Text(viewModel.language.shortLabel)
-                                .appFont(size: 12, weight: .bold)
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 8, weight: .bold))
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(Color.blue.opacity(0.12))
-                        .clipShape(Capsule())
+                        .accessibilityLabel(HemosightStrings.languageToggleAccessibilityLabel(current: viewModel.language))
                     }
-                    .accessibilityLabel(HemosightStrings.languageToggleAccessibilityLabel(current: viewModel.language))
                 }
                 
                 // Principal: Centered navigation title rendering Sukhumvit Set for Thai subtitle
