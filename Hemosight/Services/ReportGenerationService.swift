@@ -3,6 +3,7 @@ import UIKit
 import PDFKit
 
 /// Protocol abstracting clinical PDF report generation for dependency injection and testing.
+@MainActor
 public protocol ReportGenerationServiceProtocol: Sendable {
     func generatePDFReport(
         report: ComprehensivePADReport,
@@ -13,6 +14,7 @@ public protocol ReportGenerationServiceProtocol: Sendable {
 }
 
 /// Generates a standardized, professional 1-page clinical PDF summary for primary care physicians or vascular specialists.
+@MainActor
 public final class ReportGenerationService: ReportGenerationServiceProtocol, Sendable {
     
     public init() {}
@@ -295,6 +297,7 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
 // MARK: - Test Double (SpyingStub)
 
 #if DEBUG
+@MainActor
 public final class ReportGenerationServiceSpyingStub: ReportGenerationServiceProtocol, @unchecked Sendable {
     public private(set) var generatedReports: [ComprehensivePADReport] = []
     public private(set) var capturedFootImages: [UIImage?] = []

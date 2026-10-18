@@ -44,9 +44,6 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
             throw VisualInspectionError.invalidImageData
         }
         
-        let width = CGFloat(cgImage.width)
-        let height = CGFloat(cgImage.height)
-        
         // 1. Run Apple Vision Saliency & Contour Analysis to isolate foot bounding boxes
         let (leftBoundingBox, rightBoundingBox) = try detectBilateralFootRegions(cgImage: cgImage)
         

@@ -100,7 +100,7 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
                     }
                     self.scanStartTimeLock.withLock { $0 = ProcessInfo.processInfo.systemUptime }
                     self.captureSession.startRunning()
-                    self.turnTorchOn(level: 0.8)
+                    self.turnTorchOn()
                     continuation.resume()
                 } catch {
                     continuation.resume(throwing: error)
@@ -183,36 +183,6 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
         }
         captureSession.addInput(videoInput)
         
-        // 60 FPS configuration
-        try camera.lockForConfiguration()
-        defer { camera.unlockForConfiguration() }
-        
-        // Set frame rate to strictly 60 FPS
-        var frameRateSupported = false
-        for range in camera.activeFormat.videoSupportedFrameRateRanges {
-            if range.maxFrameRate >= 60.0 && range.minFrameRate <= 60.0 {
-                camera.activeVideoMinFrameDuration = CMTime(value: 1, timescale: 60)
-                camera.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: 60)
-                frameRateSupported = true
-                break
-            }
-        }
-        
-        // Lock Focus at macro/minimum distance
-        if camera.isFocusModeSupported(.locked) {
-            camera.focusMode = .locked
-        }
-        
-        // Lock Exposure
-        if camera.isExposureModeSupported(.locked) {
-            camera.exposureMode = .locked
-        }
-        
-        // Lock White Balance
-        if camera.isWhiteBalanceModeSupported(.locked) {
-            camera.whiteBalanceMode = .locked
-        }
-        
         // Configure Output
         videoOutput.alwaysDiscardsLateVideoFrames = true
         videoOutput.videoSettings = [
@@ -231,14 +201,14 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
         captureSession.commitConfiguration()
     }
     
-    private func turnTorchOn(level: Float = 0.8) {
+    private func turnTorchOn() {
         guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               camera.hasTorch,
               camera.isTorchModeSupported(.on) else { return }
         do {
             try camera.lockForConfiguration()
             defer { camera.unlockForConfiguration() }
-            try camera.setTorchModeOn(level: level)
+            camera.torchMode = .on
         } catch {
             print("Failed to turn torch on: \(error)")
         }
@@ -293,7 +263,7 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
             let rowOffset = y * bytesPerRow
             for x in stride(from: startX, to: endX, by: 2) {
                 let pixelOffset = rowOffset + (x * 4)
-                let b = buffer[pixelOffset]
+                let _ = buffer[pixelOffset] // Blue channel ignored
                 let g = buffer[pixelOffset + 1]
                 let r = buffer[pixelOffset + 2]
                 

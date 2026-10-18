@@ -70,13 +70,14 @@ public final class ScreeningWorkflowViewModel {
     
     private var cancellables = Set<AnyCancellable>()
     private var timerTask: Task<Void, Never>?
+    private var sampleCounter: UInt64 = 0
     
     public init(
-        visualScanner: any BilateralFootScannerServiceProtocol = BilateralFootScannerService(),
-        cameraPPG: any CameraPPGServiceProtocol = CameraPPGService(),
-        dspEngine: SignalProcessingEngine = SignalProcessingEngine(sampleRate: 60.0),
-        classifier: VascularRiskClassifier = VascularRiskClassifier(),
-        reportService: any ReportGenerationServiceProtocol = ReportGenerationService()
+        visualScanner: any BilateralFootScannerServiceProtocol,
+        cameraPPG: any CameraPPGServiceProtocol,
+        dspEngine: SignalProcessingEngine,
+        classifier: VascularRiskClassifier,
+        reportService: any ReportGenerationServiceProtocol
     ) {
         self.visualScanner = visualScanner
         self.cameraPPG = cameraPPG
@@ -84,6 +85,22 @@ public final class ScreeningWorkflowViewModel {
         self.classifier = classifier
         self.reportService = reportService
         bindCameraStreams()
+    }
+    
+    public convenience init(
+        visualScanner: (any BilateralFootScannerServiceProtocol)? = nil,
+        cameraPPG: (any CameraPPGServiceProtocol)? = nil,
+        dspEngine: SignalProcessingEngine? = nil,
+        classifier: VascularRiskClassifier? = nil,
+        reportService: (any ReportGenerationServiceProtocol)? = nil
+    ) {
+        self.init(
+            visualScanner: visualScanner ?? BilateralFootScannerService(),
+            cameraPPG: cameraPPG ?? CameraPPGService(),
+            dspEngine: dspEngine ?? SignalProcessingEngine(sampleRate: 60.0),
+            classifier: classifier ?? VascularRiskClassifier(),
+            reportService: reportService ?? ReportGenerationService()
+        )
     }
     
     // MARK: - Camera Stream Bindings
@@ -116,17 +133,20 @@ public final class ScreeningWorkflowViewModel {
             .sink { [weak self] point in
                 guard let self = self, self.isRecordingPPG else { return }
                 
-                // Collect raw green values for processing
+                // Collect raw green values for processing (all 60 FPS samples)
                 if self.currentStep == .step2FingerPPG {
                     self.fingerRawSamples.append(point.rawGreen)
                 } else if self.currentStep == .step3ToePPG {
                     self.toeRawSamples.append(point.rawGreen)
                 }
                 
-                // Maintain rolling 240 samples (4 seconds at 60 FPS) for Swift Charts
-                self.liveWaveformPoints.append(point)
-                if self.liveWaveformPoints.count > 240 {
-                    self.liveWaveformPoints.removeFirst()
+                // Throttle chart updates to every 3rd sample (~20 FPS) to prevent Main RunLoop starvation
+                self.sampleCounter += 1
+                if self.sampleCounter % 3 == 0 {
+                    self.liveWaveformPoints.append(point)
+                    if self.liveWaveformPoints.count > 240 {
+                        self.liveWaveformPoints.removeFirst()
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -159,6 +179,7 @@ public final class ScreeningWorkflowViewModel {
         scanSecondsRemaining = 30
         isRecordingPPG = true
         errorMessage = nil
+        sampleCounter = 0
         
         if currentStep == .step2FingerPPG {
             fingerRawSamples.removeAll()
@@ -168,11 +189,12 @@ public final class ScreeningWorkflowViewModel {
             toeSQISamples.removeAll()
         }
         
+        startScanTimer() // Start countdown immediately
+        
         do {
             try await cameraPPG.startCapture()
-            startScanTimer()
         } catch {
-            isRecordingPPG = false
+            stopPPGScanEarly()
             errorMessage = error.localizedDescription
             triggerHapticFeedback(.error)
         }
@@ -224,14 +246,14 @@ public final class ScreeningWorkflowViewModel {
                 avgSQI: avgSQI
             )
             // Finalize overall diagnosis and generate report
-            await finalizeScreeningAssessment()
+            finalizeScreeningAssessment()
             currentStep = .step4Dashboard
         }
     }
     
     // MARK: - Step 4: Classification & Report Generation
     
-    public func finalizeScreeningAssessment() async {
+    public func finalizeScreeningAssessment() {
         guard let vis = visualResult,
               let finger = fingerMorphometry,
               let toe = toeMorphometry else {
@@ -247,21 +269,13 @@ public final class ScreeningWorkflowViewModel {
         )
         self.finalReport = report
         
-        // Offload PDF generation off the @MainActor to prevent UI hitches
-        let footImage = capturedFootImage
-        let fingerSamples = fingerFilteredSamples
-        let toeSamples = toeFilteredSamples
-        let reportService = self.reportService
-        
-        let pdfData = await Task.detached(priority: .userInitiated) {
-            reportService.generatePDFReport(
-                report: report,
-                footImage: footImage,
-                fingerWaveformSamples: fingerSamples,
-                toeWaveformSamples: toeSamples
-            )
-        }.value
-        
+        // ReportGenerationService is @MainActor, invoke directly
+        let pdfData = reportService.generatePDFReport(
+            report: report,
+            footImage: capturedFootImage,
+            fingerWaveformSamples: fingerFilteredSamples,
+            toeWaveformSamples: toeFilteredSamples
+        )
         self.generatedPDFData = pdfData
     }
     
