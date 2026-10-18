@@ -617,4 +617,12 @@ public enum HemosightStrings {
             ? "ตรวจสอบผลการประเมินความเสี่ยงและส่งออกรายงานสรุปสำหรับแพทย์" 
             : "Review clinical risk evaluation and export clinical summary report."
     }
+    
+    public static func nextButton(for language: AppLanguage) -> String {
+        language == .thai ? "ถัดไป" : "Next"
+    }
+    
+    public static func startScreeningButton(for language: AppLanguage) -> String {
+        language == .thai ? "เริ่มการตรวจ" : "Start Screening"
+    }
 }
