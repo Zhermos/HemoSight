@@ -170,10 +170,10 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
                 let placeholderPath = UIBezierPath(roundedRect: photoRect, cornerRadius: 4)
                 UIColor.systemGray5.setFill()
                 placeholderPath.fill()
-                let photoPlaceholder = (language == .thai) ? "ภาพหลังเท้า" : "Foot Photo"
+                let photoPlaceholder = (language == .thai) ? "ไม่มีภาพถ่ายเท้า" : "No Foot Photo"
                 photoPlaceholder.draw(
-                    in: CGRect(x: marginX + 25, y: cursorY + 36, width: 90, height: 20),
-                    withAttributes: [.font: language.uiFont(size: 11), .foregroundColor: UIColor.secondaryLabel]
+                    in: CGRect(x: marginX + 20, y: cursorY + 36, width: 100, height: 20),
+                    withAttributes: [.font: language.uiFont(size: 10.5, weight: .medium), .foregroundColor: UIColor.secondaryLabel]
                 )
             }
             
@@ -182,20 +182,36 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
             var metricY = cursorY
             
             let visMetrics: [(String, String)]
-            if language == .thai {
-                visMetrics = [
-                    ("ความไม่สมมาตรของสีผิว (CIE ΔE):", String(format: "%.2f (ปกติ < 3.5)", report.visualResult.deltaE)),
-                    ("ระดับความซีด (ΔL*):", String(format: "%+.1f L* (ซ้าย: %.1f vs ขวา: %.1f)", report.visualResult.lightnessDisparity, report.visualResult.leftFootLightness, report.visualResult.rightFootLightness)),
-                    ("ภาวะซีดขาวเฉพาะข้าง:", report.visualResult.isClinicallyAsymmetric ? "ตรวจพบ (DETECTED)" : "ไม่พบ (None)"),
-                    ("สัญญาณการเสื่อมของเนื้อเยื่อ:", report.visualResult.trophicRiskFlags.isEmpty ? "ไม่พบสัญญาณผิดปกติ" : report.visualResult.trophicRiskFlags.joined(separator: ", "))
-                ]
+            if let vis = report.visualResult {
+                if language == .thai {
+                    visMetrics = [
+                        ("ความไม่สมมาตรของสีผิว (CIE ΔE):", String(format: "%.2f (ปกติ < 3.5)", vis.deltaE)),
+                        ("ระดับความซีด (ΔL*):", String(format: "%+.1f L* (ซ้าย: %.1f vs ขวา: %.1f)", vis.lightnessDisparity, vis.leftFootLightness, vis.rightFootLightness)),
+                        ("ภาวะซีดขาวเฉพาะข้าง:", vis.isClinicallyAsymmetric ? "ตรวจพบ (DETECTED)" : "ไม่พบ (None)"),
+                        ("สัญญาณการเสื่อมของเนื้อเยื่อ:", vis.trophicRiskFlags.isEmpty ? "ไม่พบสัญญาณผิดปกติ" : vis.trophicRiskFlags.joined(separator: ", "))
+                    ]
+                } else {
+                    visMetrics = [
+                        ("Bilateral Color Disparity (CIE ΔE):", String(format: "%.2f (Normal < 3.5)", vis.deltaE)),
+                        ("Lightness Disparity (ΔL*):", String(format: "%+.1f L* (Left: %.1f vs Right: %.1f)", vis.lightnessDisparity, vis.leftFootLightness, vis.rightFootLightness)),
+                        ("Unilateral Blanching / Pallor:", vis.isClinicallyAsymmetric ? "DETECTED" : "None"),
+                        ("Trophic Risk Flags:", vis.trophicRiskFlags.isEmpty ? "No abnormal trophic signs" : vis.trophicRiskFlags.joined(separator: ", "))
+                    ]
+                }
             } else {
-                visMetrics = [
-                    ("Bilateral Color Disparity (CIE ΔE):", String(format: "%.2f (Normal < 3.5)", report.visualResult.deltaE)),
-                    ("Lightness Disparity (ΔL*):", String(format: "%+.1f L* (Left: %.1f vs Right: %.1f)", report.visualResult.lightnessDisparity, report.visualResult.leftFootLightness, report.visualResult.rightFootLightness)),
-                    ("Unilateral Blanching / Pallor:", report.visualResult.isClinicallyAsymmetric ? "DETECTED" : "None"),
-                    ("Trophic Risk Flags:", report.visualResult.trophicRiskFlags.isEmpty ? "No abnormal trophic signs" : report.visualResult.trophicRiskFlags.joined(separator: ", "))
-                ]
+                if language == .thai {
+                    visMetrics = [
+                        ("สถานะการตรวจภาพถ่ายเท้า:", "ยังไม่ได้ตรวจ (ไม่บังคับ)"),
+                        ("หมายเหตุทางคลินิก:", "คะแนนความเสี่ยงประเมินจากคลื่นชีพจร 2 ตำแหน่งเป็นหลัก"),
+                        ("คำแนะนำเพิ่มเติม:", "สามารถถ่ายภาพเท้าเพิ่มเติมภายหลังเพื่อเพิ่มความแม่นยำ")
+                    ]
+                } else {
+                    visMetrics = [
+                        ("Foot Photo Inspection:", "Not Performed (Optional)"),
+                        ("Clinical Modality Note:", "Risk assessed primarily via Dual-Site Hemodynamics"),
+                        ("Recommendation:", "Optional foot photo can be added anytime for higher fidelity")
+                    ]
+                }
             }
             
             for (title, val) in visMetrics {

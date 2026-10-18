@@ -4,19 +4,17 @@ import Combine
 
 /// Current step in the multi-stage vascular screening workflow.
 public enum ScreeningStep: Int, CaseIterable, Identifiable {
-    case step1VisualPhoto = 1
-    case step2FingerPPG = 2
-    case step3ToePPG = 3
-    case step4Dashboard = 4
+    case step1FingerPPG = 1
+    case step2ToePPG = 2
+    case step3Dashboard = 3
     
     public var id: Int { rawValue }
     
     public var title: String {
         switch self {
-        case .step1VisualPhoto: return "Step 1: Bilateral Foot Photo"
-        case .step2FingerPPG: return "Step 2: Fingertip Pulse (Baseline)"
-        case .step3ToePPG: return "Step 3: Big Toe Pulse (Distal)"
-        case .step4Dashboard: return "Step 4: Clinical Risk Assessment"
+        case .step1FingerPPG: return "Step 1: Fingertip Pulse (Baseline)"
+        case .step2ToePPG: return "Step 2: Big Toe Pulse (Distal)"
+        case .step3Dashboard: return "Step 3: Clinical Results Dashboard"
         }
     }
     
@@ -46,9 +44,13 @@ public final class ScreeningWorkflowViewModel {
     }
     
     // Workflow State
-    public var currentStep: ScreeningStep = .step1VisualPhoto
+    public var currentStep: ScreeningStep = .step1FingerPPG
     public var isProcessing: Bool = false
     public var errorMessage: String?
+    
+    // Supplemental Foot Scan in Dashboard
+    public var isShowingSupplementalFootTutorial: Bool = false
+    public var isShowingSupplementalFootCamera: Bool = false
     
     // Contextual Tutorial Flow State
     public var activeTutorialStep: ScreeningStep? = nil
@@ -70,7 +72,7 @@ public final class ScreeningWorkflowViewModel {
     }
     
     public func checkAndTriggerTutorial(for step: ScreeningStep) {
-        guard step != .step4Dashboard else { return }
+        guard step != .step3Dashboard else { return }
         if !isTutorialSuppressed(for: step) {
             activeTutorialStep = step
         }
@@ -80,12 +82,19 @@ public final class ScreeningWorkflowViewModel {
         if isRecordingPPG {
             stopPPGScanEarly()
         }
-        let stepToShow = (currentStep == .step4Dashboard ? .step1VisualPhoto : currentStep)
-        activeTutorialStep = stepToShow
+        activeTutorialStep = currentStep
     }
     
     public func dismissActiveTutorial() {
         activeTutorialStep = nil
+    }
+    
+    public func showSupplementalFootTutorial() {
+        isShowingSupplementalFootTutorial = true
+    }
+    
+    public func dismissSupplementalFootTutorial() {
+        isShowingSupplementalFootTutorial = false
     }
     
     // Patient Data
@@ -148,7 +157,6 @@ public final class ScreeningWorkflowViewModel {
            let appLang = AppLanguage(rawValue: storedLang) {
             self.language = appLang
         }
-        checkAndTriggerTutorial(for: .step1VisualPhoto)
         bindCameraStreams()
     }
     
@@ -192,9 +200,9 @@ public final class ScreeningWorkflowViewModel {
                     self.updateLiveBPM(nil)
                 }
                 if self.isRecordingPPG {
-                    if self.currentStep == .step2FingerPPG {
+                    if self.currentStep == .step1FingerPPG {
                         self.fingerSQISamples.append(sqi)
-                    } else if self.currentStep == .step3ToePPG {
+                    } else if self.currentStep == .step2ToePPG {
                         self.toeSQISamples.append(sqi)
                     }
                 }
@@ -207,9 +215,9 @@ public final class ScreeningWorkflowViewModel {
                 guard let self = self, self.isRecordingPPG else { return }
                 
                 // Store raw sample in clinical buffer (full 60 FPS)
-                if self.currentStep == .step2FingerPPG {
+                if self.currentStep == .step1FingerPPG {
                     self.fingerRawSamples.append(point.rawGreen)
-                } else if self.currentStep == .step3ToePPG {
+                } else if self.currentStep == .step2ToePPG {
                     self.toeRawSamples.append(point.rawGreen)
                 }
                 
@@ -313,10 +321,10 @@ public final class ScreeningWorkflowViewModel {
         smoothedBPMValue = nil
         rollingBpmWindow.removeAll()
         
-        if currentStep == .step2FingerPPG {
+        if currentStep == .step1FingerPPG {
             fingerRawSamples.removeAll()
             fingerSQISamples.removeAll()
-        } else if currentStep == .step3ToePPG {
+        } else if currentStep == .step2ToePPG {
             toeRawSamples.removeAll()
             toeSQISamples.removeAll()
         }
@@ -366,7 +374,7 @@ public final class ScreeningWorkflowViewModel {
         stopPPGScanEarly()
         triggerHapticFeedback(.success)
         
-        if currentStep == .step2FingerPPG {
+        if currentStep == .step1FingerPPG {
             // Filter and extract Finger metrics
             fingerFilteredSamples = dspEngine.filterSignal(fingerRawSamples)
             let avgSQI = fingerSQISamples.isEmpty ? currentSQI : (fingerSQISamples.reduce(0.0, +) / Double(fingerSQISamples.count))
@@ -376,9 +384,9 @@ public final class ScreeningWorkflowViewModel {
                 avgSQI: avgSQI
             )
             // Advance to Toe Scan
-            currentStep = .step3ToePPG
-            checkAndTriggerTutorial(for: .step3ToePPG)
-        } else if currentStep == .step3ToePPG {
+            currentStep = .step2ToePPG
+            checkAndTriggerTutorial(for: .step2ToePPG)
+        } else if currentStep == .step2ToePPG {
             // Filter and extract Toe metrics
             toeFilteredSamples = dspEngine.filterSignal(toeRawSamples)
             let avgSQI = toeSQISamples.isEmpty ? currentSQI : (toeSQISamples.reduce(0.0, +) / Double(toeSQISamples.count))
@@ -389,21 +397,20 @@ public final class ScreeningWorkflowViewModel {
             )
             // Finalize overall diagnosis and generate report
             finalizeScreeningAssessment()
-            currentStep = .step4Dashboard
+            currentStep = .step3Dashboard
         }
     }
     
-    // MARK: - Step 4: Classification & Report Generation
+    // MARK: - Step 3: Classification & Report Generation
     
     public func finalizeScreeningAssessment() {
-        guard let vis = visualResult,
-              let finger = fingerMorphometry,
+        guard let finger = fingerMorphometry,
               let toe = toeMorphometry else {
             return
         }
         
         let report = classifier.evaluateVascularRisk(
-            visualResult: vis,
+            visualResult: visualResult,
             fingerWave: finger,
             toeWave: toe,
             patientName: patientName,
@@ -434,6 +441,27 @@ public final class ScreeningWorkflowViewModel {
         self.generatedPDFData = pdfData
     }
     
+    // MARK: - Supplemental Foot Photo Analysis (Optional in Results)
+    
+    public func processSupplementalFootPhoto(_ image: UIImage) async {
+        isProcessing = true
+        errorMessage = nil
+        capturedFootImage = image
+        
+        do {
+            let result = try await visualScanner.analyzeBilateralDorsalFeet(image: image)
+            self.visualResult = result
+            self.isProcessing = false
+            triggerHapticFeedback(.success)
+            // Recalculate score and update PDF with visual data
+            finalizeScreeningAssessment()
+        } catch {
+            self.isProcessing = false
+            self.errorMessage = error.localizedDescription
+            triggerHapticFeedback(.error)
+        }
+    }
+    
     public func restartWorkflow() {
         stopPPGScanEarly()
         capturedFootImage = nil
@@ -451,8 +479,7 @@ public final class ScreeningWorkflowViewModel {
         liveBPM = nil
         smoothedBPMValue = nil
         rollingBpmWindow.removeAll()
-        currentStep = .step1VisualPhoto
-        checkAndTriggerTutorial(for: .step1VisualPhoto)
+        currentStep = .step1FingerPPG
     }
     
     private func triggerHapticFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {
@@ -467,7 +494,7 @@ public final class ScreeningWorkflowViewModel {
 #if DEBUG
 extension ScreeningWorkflowViewModel {
     public static func preview(
-        step: ScreeningStep = .step1VisualPhoto,
+        step: ScreeningStep = .step1FingerPPG,
         isProcessing: Bool = false,
         report: ComprehensivePADReport? = nil,
         isRecordingPPG: Bool = false,

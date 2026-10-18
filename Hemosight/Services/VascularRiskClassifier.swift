@@ -8,18 +8,18 @@ public final class VascularRiskClassifier: Sendable {
     
     /// Computes the comprehensive screening outcome.
     /// - Parameters:
-    ///   - visualResult: Quantified CIE L*a*b* asymmetry, Delta E, and pallor metrics.
+    ///   - visualResult: Quantified CIE L*a*b* asymmetry, Delta E, and pallor metrics (optional if user only performed pulse tests).
     ///   - fingerWave: Extracted morphometry from fingertip baseline.
     ///   - toeWave: Extracted morphometry from distal big toe.
     ///   - patientName: Patient or subject identifier.
     ///   - patientAge: Age in years.
     /// - Returns: Complete `ComprehensivePADReport`.
     public func evaluateVascularRisk(
-        visualResult: VisualIschemiaResult,
+        visualResult: VisualIschemiaResult? = nil,
         fingerWave: WaveformMorphometry,
         toeWave: WaveformMorphometry,
-        patientName: String,
-        patientAge: Int
+        patientName: String = "Eleanor Vance",
+        patientAge: Int = 74
     ) -> ComprehensivePADReport {
         
         // 1. Calculate Hemodynamic Comparison Parameters
@@ -71,20 +71,25 @@ public final class VascularRiskClassifier: Sendable {
             recommendations.append("Blunted toe waveform with complete disappearance of the dicrotic wave notch.")
         }
         
-        // --- Visual Metric 1: CIE L*a*b* Color Difference (Delta E) ---
-        // Delta E > 5.0 indicates noticeable bilateral skin color mismatch.
-        if visualResult.deltaE > 6.0 {
-            compositeScore += 18.0
-            recommendations.append("Pronounced bilateral cutaneous chromatic discrepancy (Delta E = \(String(format: "%.1f", visualResult.deltaE))).")
-        } else if visualResult.deltaE > 3.5 {
-            compositeScore += 8.0
-        }
-        
-        // --- Visual Metric 2: Unilateral Pallor (L* Disparity) ---
-        if abs(visualResult.lightnessDisparity) > 8.0 {
-            let paleSide = visualResult.lightnessDisparity > 0 ? "Left" : "Right"
-            compositeScore += 15.0
-            recommendations.append("Unilateral dorsal foot blanching / pallor on the \(paleSide) foot.")
+        // --- Visual Metrics (Optional: only applied if foot photo was analyzed) ---
+        if let visual = visualResult {
+            // Visual Metric 1: CIE L*a*b* Color Difference (Delta E)
+            if visual.deltaE > 6.0 {
+                compositeScore += 18.0
+                recommendations.append("Pronounced bilateral cutaneous chromatic discrepancy (Delta E = \(String(format: "%.1f", visual.deltaE))).")
+            } else if visual.deltaE > 3.5 {
+                compositeScore += 8.0
+            }
+            
+            // Visual Metric 2: Unilateral Pallor (L* Disparity)
+            if abs(visual.lightnessDisparity) > 8.0 {
+                let paleSide = visual.lightnessDisparity > 0 ? "Left" : "Right"
+                compositeScore += 15.0
+                recommendations.append("Unilateral dorsal foot blanching / pallor on the \(paleSide) foot.")
+            }
+        } else {
+            // If visualResult is not provided, scale hemodynamic score proportionally to full 100-point scale (77 max -> 100)
+            compositeScore = (compositeScore / 77.0) * 100.0
         }
         
         // --- Age-Adjusted Risk Weighting ---
@@ -99,10 +104,13 @@ public final class VascularRiskClassifier: Sendable {
         
         // 3. Risk Stratification Categorization
         let riskLevel: PADRiskLevel
-        if compositeScore >= 45.0 || toeWave.meanSystolicRiseTimeMs > 200.0 || (amplitudeRatio < 0.25 && visualResult.deltaE > 5.0) {
+        let hasVisualSevere = visualResult.map { $0.deltaE > 5.0 } ?? false
+        let hasVisualModerate = visualResult.map { $0.deltaE > 4.0 } ?? false
+        
+        if compositeScore >= 45.0 || toeWave.meanSystolicRiseTimeMs > 200.0 || (amplitudeRatio < 0.25 && hasVisualSevere) {
             riskLevel = .high
             recommendations.insert("URGENT: Schedule in-person clinical evaluation for formal Ankle-Brachial Index (ABI) and Arterial Duplex Ultrasound.", at: 0)
-        } else if compositeScore >= 20.0 || toeWave.meanSystolicRiseTimeMs > 165.0 || visualResult.deltaE > 4.0 {
+        } else if compositeScore >= 20.0 || toeWave.meanSystolicRiseTimeMs > 165.0 || hasVisualModerate {
             riskLevel = .moderate
             recommendations.insert("RECOMMENDED: Repeat Hemosight screening in 14 days and monitor for calf cramping / claudication during walking.", at: 0)
         } else {

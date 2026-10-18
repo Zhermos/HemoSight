@@ -39,17 +39,15 @@ public enum HemosightStrings {
         switch language {
         case .english:
             switch step {
-            case .step1VisualPhoto: return "Foot Photo"
-            case .step2FingerPPG: return "Finger Pulse"
-            case .step3ToePPG: return "Toe Pulse"
-            case .step4Dashboard: return "Results"
+            case .step1FingerPPG: return "Finger Pulse"
+            case .step2ToePPG: return "Toe Pulse"
+            case .step3Dashboard: return "Results"
             }
         case .thai:
             switch step {
-            case .step1VisualPhoto: return "ภาพหลังเท้า"
-            case .step2FingerPPG: return "ชีพจรนิ้วมือ"
-            case .step3ToePPG: return "ชีพจรนิ้วเท้า"
-            case .step4Dashboard: return "ผลประเมิน"
+            case .step1FingerPPG: return "ชีพจรนิ้วมือ"
+            case .step2ToePPG: return "ชีพจรนิ้วเท้า"
+            case .step3Dashboard: return "ผลตรวจสรุป"
             }
         }
     }
@@ -58,17 +56,15 @@ public enum HemosightStrings {
         switch language {
         case .english:
             switch step {
-            case .step1VisualPhoto: return "Step 1: Bilateral Foot Photo"
-            case .step2FingerPPG: return "Step 2: Fingertip Pulse (Baseline)"
-            case .step3ToePPG: return "Step 3: Big Toe Pulse (Distal)"
-            case .step4Dashboard: return "Step 4: Clinical Risk Assessment"
+            case .step1FingerPPG: return "Step 1: Fingertip Pulse (Baseline)"
+            case .step2ToePPG: return "Step 2: Big Toe Pulse (Distal)"
+            case .step3Dashboard: return "Step 3: Clinical Results Dashboard"
             }
         case .thai:
             switch step {
-            case .step1VisualPhoto: return "ขั้นตอนที่ 1: ถ่ายภาพหลังเท้าทั้งสองข้าง"
-            case .step2FingerPPG: return "ขั้นตอนที่ 2: ตรวจชีพจรปลายนิ้วมือ"
-            case .step3ToePPG: return "ขั้นตอนที่ 3: ตรวจชีพจรนิ้วหัวแม่เท้า"
-            case .step4Dashboard: return "ขั้นตอนที่ 4: สรุปผลการประเมินความเสี่ยง"
+            case .step1FingerPPG: return "ขั้นตอนที่ 1: ตรวจชีพจรปลายนิ้วมือ"
+            case .step2ToePPG: return "ขั้นตอนที่ 2: ตรวจชีพจรนิ้วหัวแม่เท้า"
+            case .step3Dashboard: return "ขั้นตอนที่ 3: สรุปผลการตรวจคัดกรอง"
             }
         }
     }
@@ -438,6 +434,50 @@ public enum HemosightStrings {
         return text
     }
     
+    // MARK: - Supplemental Foot Photo Inspection (Optional in Results)
+    
+    public static func supplementalFootScanButton(for language: AppLanguage) -> String {
+        switch language {
+        case .english: return "Perform Foot Photo Inspection (Optional for Higher Accuracy)"
+        case .thai: return "ตรวจวิเคราะห์ภาพถ่ายเท้าเพิ่มเติม (เพื่อความแม่นยำสูงสุด)"
+        }
+    }
+    
+    public static func supplementalFootScanCompleted(deltaE: Double, language: AppLanguage) -> String {
+        switch language {
+        case .english: return String(format: "Foot Photo Analyzed (Color Disparity: ΔE %.1f)", deltaE)
+        case .thai: return String(format: "ตรวจวิเคราะห์ภาพเท้าแล้ว (ความแตกต่างสีผิว: ΔE %.1f)", deltaE)
+        }
+    }
+    
+    public static func supplementalFootScanRetake(for language: AppLanguage) -> String {
+        switch language {
+        case .english: return "Retake Foot Photo"
+        case .thai: return "ถ่ายภาพเท้าใหม่"
+        }
+    }
+    
+    public static func supplementalFootScanHeader(for language: AppLanguage) -> String {
+        switch language {
+        case .english: return "Supplemental Foot Skin & Visual Inspection"
+        case .thai: return "การตรวจสภาพผิวหนังและสีเท้าเพิ่มเติม"
+        }
+    }
+    
+    public static func supplementalFootScanPrompt(for language: AppLanguage) -> String {
+        switch language {
+        case .english: return "Bilateral dorsal foot photography helps detect localized ischemia and refines screening accuracy."
+        case .thai: return "การตรวจภาพถ่ายหลังเท้าทั้งสองข้างช่วยตรวจจับภาวะขาดเลือดเฉพาะส่วน (Ischemia) และเพิ่มความแม่นยำในการคัดกรอง"
+        }
+    }
+    
+    public static func supplementalFootScanTutorialLink(for language: AppLanguage) -> String {
+        switch language {
+        case .english: return "How to take foot photos properly (?)"
+        case .thai: return "ดูวิธีถ่ายภาพเท้าที่ถูกต้อง (?)"
+        }
+    }
+    
     // MARK: - Contextual Step-by-Step Tutorial Flow
     
     public static func helpButtonAccessibilityLabel(for language: AppLanguage) -> String {
@@ -470,47 +510,53 @@ public enum HemosightStrings {
     
     public static func stepTutorialTitle(for step: ScreeningStep, language: AppLanguage) -> String {
         switch step {
-        case .step1VisualPhoto:
-            return language == .thai ? "วิธีถ่ายภาพหลังเท้าทั้งสองข้าง" : "How to Take Bilateral Foot Photos"
-        case .step2FingerPPG:
+        case .step1FingerPPG:
             return language == .thai ? "วิธีวางนิ้วมือตรวจคลื่นชีพจร" : "How to Position Fingertip for Pulse"
-        case .step3ToePPG:
+        case .step2ToePPG:
             return language == .thai ? "วิธีวางนิ้วหัวแม่เท้าตรวจคลื่นชีพจร" : "How to Position Big Toe for Pulse"
-        case .step4Dashboard:
+        case .step3Dashboard:
             return language == .thai ? "สรุปผลการประเมินทางการแพทย์" : "Clinical Risk Assessment Summary"
         }
     }
     
+    public static func footPhotoTutorialTitle(for language: AppLanguage) -> String {
+        language == .thai ? "วิธีถ่ายภาพหลังเท้าทั้งสองข้าง" : "How to Take Bilateral Foot Photos"
+    }
+    
     public static func stepTutorialSubtitle(for step: ScreeningStep, language: AppLanguage) -> String {
         switch step {
-        case .step1VisualPhoto:
-            return language == .thai ? "ขั้นตอนที่ 1: การตรวจภาพถ่ายสีผิว" : "Step 1: Visual Inspection & Saliency"
-        case .step2FingerPPG:
-            return language == .thai ? "ขั้นตอนที่ 2: ชีพจรนิ้วมือ (ค่าอ้างอิงหัวใจ)" : "Step 2: Fingertip Cardiac Baseline"
-        case .step3ToePPG:
-            return language == .thai ? "ขั้นตอนที่ 3: ชีพจรนิ้วเท้า (หลอดเลือดส่วนปลาย)" : "Step 3: Big Toe Distal Perfusion"
-        case .step4Dashboard:
-            return language == .thai ? "ขั้นตอนที่ 4: สรุปผลการประเมิน" : "Step 4: Clinical Risk Assessment"
+        case .step1FingerPPG:
+            return language == .thai ? "ขั้นตอนที่ 1: ชีพจรนิ้วมือ (ค่าอ้างอิงหัวใจ)" : "Step 1: Fingertip Cardiac Baseline"
+        case .step2ToePPG:
+            return language == .thai ? "ขั้นตอนที่ 2: ชีพจรนิ้วเท้า (หลอดเลือดส่วนปลาย)" : "Step 2: Big Toe Distal Perfusion"
+        case .step3Dashboard:
+            return language == .thai ? "ขั้นตอนที่ 3: สรุปผลการประเมิน" : "Step 3: Clinical Risk Assessment"
+        }
+    }
+    
+    public static func footPhotoTutorialSubtitle(for language: AppLanguage) -> String {
+        language == .thai ? "การตรวจภาพถ่ายสีผิวและความสมมาตร" : "Visual Inspection & Saliency"
+    }
+    
+    public static func footPhotoTutorialChecklist(for language: AppLanguage) -> [String] {
+        if language == .thai {
+            return [
+                "วางเท้าเปล่าทั้งสองข้างขนานกันบนพื้นราบ",
+                "ถอดถุงเท้าและดึงขากางเกงขึ้น ในบริเวณที่มีแสงสว่างชัดเจน",
+                "ถือโทรศัพท์ด้วยสองมือ ให้เท้าทั้งสองข้างอยู่ในกรอบภาพสีเขียว"
+            ]
+        } else {
+            return [
+                "Place both bare feet parallel and flat on the ground",
+                "Remove socks and pull up pant legs under clear, even lighting",
+                "Hold phone with both hands, framing both feet inside the green guide box"
+            ]
         }
     }
     
     public static func stepTutorialChecklist(for step: ScreeningStep, language: AppLanguage) -> [String] {
         switch step {
-        case .step1VisualPhoto:
-            if language == .thai {
-                return [
-                    "วางเท้าเปล่าทั้งสองข้างขนานกันบนพื้นราบ",
-                    "ถอดถุงเท้าและดึงขากางเกงขึ้น ในบริเวณที่มีแสงสว่างชัดเจน",
-                    "ถือโทรศัพท์ด้วยสองมือ ให้เท้าทั้งสองข้างอยู่ในกรอบภาพสีเขียว"
-                ]
-            } else {
-                return [
-                    "Place both bare feet parallel and flat on the ground",
-                    "Remove socks and pull up pant legs under clear, even lighting",
-                    "Hold phone with both hands, framing both feet inside the green guide box"
-                ]
-            }
-        case .step2FingerPPG:
+        case .step1FingerPPG:
             if language == .thai {
                 return [
                     "ใช้นิ้วชี้มือข้างที่ถนัดวางบนเลนส์กล้องหลัง",
@@ -524,7 +570,7 @@ public enum HemosightStrings {
                     "Touch gently without pressing hard, and hold still for 30 seconds"
                 ]
             }
-        case .step3ToePPG:
+        case .step2ToePPG:
             if language == .thai {
                 return [
                     "นั่งบนเก้าอี้ที่มั่นคงในท่าที่สบายและผ่อนคลาย",
@@ -538,21 +584,31 @@ public enum HemosightStrings {
                     "Keep foot relaxed without clenching, holding still for 30 seconds"
                 ]
             }
-        case .step4Dashboard:
-            return []
+        case .step3Dashboard:
+            if language == .thai {
+                return [
+                    "ตรวจสอบระดับความเสี่ยง (เขียว/เหลือง/แดง) และคะแนน PAD Risk Score",
+                    "อ่านคำแนะนำทางการแพทย์และข้อสังเกตความแตกต่างของคลื่นชีพจร",
+                    "กดปุ่ม 'แชร์รายงาน PDF' เพื่อส่งผลตรวจอย่างเป็นทางการให้แพทย์ผู้เชี่ยวชาญ"
+                ]
+            } else {
+                return [
+                    "Review risk level (Low/Moderate/High) and composite PAD Risk Score",
+                    "Examine clinical observations and bilateral pulse wave disparities",
+                    "Tap 'Share Clinical PDF' to export formal report to your healthcare provider"
+                ]
+            }
         }
     }
     
     public static func stepTutorialActionButton(for step: ScreeningStep, language: AppLanguage) -> String {
         switch step {
-        case .step1VisualPhoto:
-            return language == .thai ? "เข้าใจแล้ว เริ่มถ่ายภาพหลังเท้า" : "Understood, Start Foot Photo"
-        case .step2FingerPPG:
+        case .step1FingerPPG:
             return language == .thai ? "เข้าใจแล้ว เริ่มตรวจชีพจรนิ้วมือ" : "Understood, Start Finger Pulse"
-        case .step3ToePPG:
+        case .step2ToePPG:
             return language == .thai ? "เข้าใจแล้ว เริ่มตรวจชีพจรนิ้วเท้า" : "Understood, Start Toe Pulse"
-        case .step4Dashboard:
-            return language == .thai ? "เข้าใจแล้ว เริ่มต้นการตรวจ" : "Understood, Proceed"
+        case .step3Dashboard:
+            return language == .thai ? "เข้าใจแล้ว ดูผลการประเมิน" : "Understood, View Results"
         }
     }
     
@@ -568,10 +624,10 @@ public enum HemosightStrings {
     
     // Step 1
     public static func tutorialStep1Title(for language: AppLanguage) -> String {
-        stepTutorialTitle(for: .step1VisualPhoto, language: language)
+        footPhotoTutorialTitle(for: language)
     }
     public static func tutorialStep1Subtitle(for language: AppLanguage) -> String {
-        stepTutorialSubtitle(for: .step1VisualPhoto, language: language)
+        footPhotoTutorialSubtitle(for: language)
     }
     public static func tutorialStep1Rule(for language: AppLanguage) -> String {
         language == .thai 
@@ -581,10 +637,10 @@ public enum HemosightStrings {
     
     // Step 2
     public static func tutorialStep2Title(for language: AppLanguage) -> String {
-        stepTutorialTitle(for: .step2FingerPPG, language: language)
+        stepTutorialTitle(for: .step1FingerPPG, language: language)
     }
     public static func tutorialStep2Subtitle(for language: AppLanguage) -> String {
-        stepTutorialSubtitle(for: .step2FingerPPG, language: language)
+        stepTutorialSubtitle(for: .step1FingerPPG, language: language)
     }
     public static func tutorialStep2Rule(for language: AppLanguage) -> String {
         language == .thai 
@@ -594,10 +650,10 @@ public enum HemosightStrings {
     
     // Step 3
     public static func tutorialStep3Title(for language: AppLanguage) -> String {
-        stepTutorialTitle(for: .step3ToePPG, language: language)
+        stepTutorialTitle(for: .step2ToePPG, language: language)
     }
     public static func tutorialStep3Subtitle(for language: AppLanguage) -> String {
-        stepTutorialSubtitle(for: .step3ToePPG, language: language)
+        stepTutorialSubtitle(for: .step2ToePPG, language: language)
     }
     public static func tutorialStep3Rule(for language: AppLanguage) -> String {
         language == .thai 
@@ -607,10 +663,10 @@ public enum HemosightStrings {
     
     // Step 4
     public static func tutorialStep4Title(for language: AppLanguage) -> String {
-        stepTutorialTitle(for: .step4Dashboard, language: language)
+        stepTutorialTitle(for: .step3Dashboard, language: language)
     }
     public static func tutorialStep4Subtitle(for language: AppLanguage) -> String {
-        stepTutorialSubtitle(for: .step4Dashboard, language: language)
+        stepTutorialSubtitle(for: .step3Dashboard, language: language)
     }
     public static func tutorialStep4Rule(for language: AppLanguage) -> String {
         language == .thai 

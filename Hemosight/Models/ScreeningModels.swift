@@ -160,7 +160,7 @@ public struct ComprehensivePADReport: Codable, Sendable {
     public let patientName: String
     public let patientAge: Int
     public let timestamp: Date
-    public let visualResult: VisualIschemiaResult
+    public let visualResult: VisualIschemiaResult?
     public let hemodynamicResult: HemodynamicComparisonResult
     public let overallRiskLevel: PADRiskLevel
     public let compositeRiskScore: Double // 0.0 to 100.0 scale
@@ -171,7 +171,7 @@ public struct ComprehensivePADReport: Codable, Sendable {
         patientName: String,
         patientAge: Int,
         timestamp: Date = Date(),
-        visualResult: VisualIschemiaResult,
+        visualResult: VisualIschemiaResult? = nil,
         hemodynamicResult: HemodynamicComparisonResult,
         overallRiskLevel: PADRiskLevel,
         compositeRiskScore: Double,
@@ -279,7 +279,7 @@ extension ComprehensivePADReport {
         patientName: String = "Test Patient",
         patientAge: Int = 65,
         timestamp: Date = Date(timeIntervalSince1970: 1700000000), // Fixed repeatable date per F.I.R.S.T.
-        visualResult: VisualIschemiaResult = .fixture(),
+        visualResult: VisualIschemiaResult? = nil,
         hemodynamicResult: HemodynamicComparisonResult = .fixture(),
         overallRiskLevel: PADRiskLevel = .low,
         compositeRiskScore: Double = 12.0,

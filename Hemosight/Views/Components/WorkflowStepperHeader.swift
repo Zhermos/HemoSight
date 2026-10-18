@@ -55,7 +55,7 @@ public struct WorkflowStepperHeader: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
             appLanguage == .thai
-                ? "ความคืบหน้าการตรวจ: ขั้นตอนที่ \(currentStep.rawValue) จาก 4 ขั้นตอน"
+                ? "ความคืบหน้าการตรวจ: ขั้นตอนที่ \(currentStep.rawValue) จาก \(ScreeningStep.allCases.count) ขั้นตอน"
                 : "Workflow progress: Step \(currentStep.rawValue) of \(ScreeningStep.allCases.count)"
         )
     }

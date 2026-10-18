@@ -21,21 +21,19 @@ public struct HemosightRootView: View {
                 // Active Step Content
                 Group {
                     switch viewModel.currentStep {
-                    case .step1VisualPhoto:
-                        VisualPhotoScanView(viewModel: viewModel)
-                    case .step2FingerPPG:
+                    case .step1FingerPPG:
                         PPGScanView(
                             viewModel: viewModel,
                             site: .finger,
                             instruction: HemosightStrings.ppgInstruction(for: .finger, language: viewModel.language)
                         )
-                    case .step3ToePPG:
+                    case .step2ToePPG:
                         PPGScanView(
                             viewModel: viewModel,
                             site: .toe,
                             instruction: HemosightStrings.ppgInstruction(for: .toe, language: viewModel.language)
                         )
-                    case .step4Dashboard:
+                    case .step3Dashboard:
                         ClinicalDashboardView(viewModel: viewModel)
                     }
                 }
