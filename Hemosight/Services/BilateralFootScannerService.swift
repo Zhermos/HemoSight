@@ -9,17 +9,21 @@ public enum VisualInspectionError: LocalizedError {
     case feetSegmentationFailed
     case insufficientContoursDetected
     case illuminationInadequate
+    case noHumanSkinDetected
     
     public var errorDescription: String? {
+        let isThai = UserDefaults.standard.string(forKey: "app_language") == "th"
         switch self {
         case .invalidImageData:
-            return "Unable to process the captured photo format."
+            return isThai ? "ไม่สามารถประมวลผลไฟล์ภาพที่เลือกได้" : "Unable to process the captured photo format."
         case .feetSegmentationFailed:
-            return "Could not delineate left and right foot boundaries. Please ensure both feet are clearly positioned within the guide silhouette."
+            return isThai ? "ไม่สามารถแยกตำแหน่งเท้าซ้ายและขวาได้ชัดเจน กรุณาวางเท้าทั้งสองข้างให้อยู่ในกรอบ" : "Could not delineate left and right foot boundaries. Please ensure both feet are clearly positioned within the guide silhouette."
         case .insufficientContoursDetected:
-            return "Insufficient dorsal skin surface detected for bilateral analysis."
+            return isThai ? "ตรวจพบพื้นที่ผิวหนังไม่เพียงพอสำหรับการวิเคราะห์" : "Insufficient dorsal skin surface detected for bilateral analysis."
         case .illuminationInadequate:
-            return "Lighting is too dark or uneven. Please reposition with good ambient lighting."
+            return isThai ? "สภาพแสงมืดหรือสลัวเกินไป กรุณาถ่ายภาพในบริเวณที่มีแสงสว่างเพียงพอ" : "Lighting is too dark or uneven. Please reposition with good ambient lighting."
+        case .noHumanSkinDetected:
+            return isThai ? "ไม่พบเท้าหรือสีผิวหนังมนุษย์ในภาพ กรุณาถ่ายภาพหลังเท้าเปล่าทั้งสองข้างให้เห็นชัดเจน" : "No human feet or skin tone detected in the photo. Please place both bare feet side-by-side in good lighting and capture again."
         }
     }
 }
@@ -57,7 +61,18 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
         let leftLab = calculateAverageCIELAB(from: leftFootCG)
         let rightLab = calculateAverageCIELAB(from: rightFootCG)
         
-        // 4. Calculate CIE Delta E (CIE 1976 / Euclidean in Lab space) and Lightness disparity
+        // 4. Validate human cutaneous chromaticity to reject non-biological objects (floors, furniture, walls)
+        let isLeftSkin = isValidHumanSkin(lab: leftLab)
+        let isRightSkin = isValidHumanSkin(lab: rightLab)
+        guard isLeftSkin && isRightSkin else {
+            if leftLab.L < 18.0 || rightLab.L < 18.0 {
+                throw VisualInspectionError.illuminationInadequate
+            } else {
+                throw VisualInspectionError.noHumanSkinDetected
+            }
+        }
+        
+        // 5. Calculate CIE Delta E (CIE 1976 / Euclidean in Lab space) and Lightness disparity
         let deltaE = sqrt(
             pow(leftLab.L - rightLab.L, 2) +
             pow(leftLab.a - rightLab.a, 2) +
@@ -65,7 +80,7 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
         )
         let lightnessDisparity = leftLab.L - rightLab.L // Positive = Left is paler; Negative = Right is paler
         
-        // 5. Evaluate trophic risk markers (pallor, erythema rubor, asymmetry)
+        // 6. Evaluate trophic risk markers (pallor, erythema rubor, asymmetry)
         var trophicMarkers: [String] = []
         if deltaE > 5.0 {
             trophicMarkers.append("Marked bilateral color disparity (Delta E > 5.0)")
@@ -226,6 +241,18 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
         let b = 200.0 * (fy - fz)
         
         return CIELAB(L: L, a: a, b: b)
+    }
+    
+    // MARK: - Cutaneous Chromaticity Validation
+    
+    /// Validates whether a given CIE L*a*b* reading corresponds to living human cutaneous tissue across Fitzpatrick phototypes (I-VI).
+    /// Living skin must contain microvascular hemoglobin (a* in [3.0, 36.0]) and melanin warmth (b* in [3.5, 42.0]),
+    /// rejecting non-biological objects, floors, white walls, screens, and clothing.
+    private func isValidHumanSkin(lab: CIELAB) -> Bool {
+        let isLightnessValid = lab.L >= 18.0 && lab.L <= 92.0
+        let isRedChromaValid = lab.a >= 3.0 && lab.a <= 36.0
+        let isYellowChromaValid = lab.b >= 3.5 && lab.b <= 42.0
+        return isLightnessValid && isRedChromaValid && isYellowChromaValid
     }
     
     // MARK: - Image Orientation Normalization

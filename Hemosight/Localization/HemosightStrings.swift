@@ -15,7 +15,7 @@ public enum HemosightStrings {
     public static func reset(for language: AppLanguage) -> String {
         switch language {
         case .english: return "Reset"
-        case .thai: return "เริ่มใหม่"
+        case .thai: return "รีเซ็ต"
         }
     }
     

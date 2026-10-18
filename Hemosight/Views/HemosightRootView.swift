@@ -42,10 +42,9 @@ public struct HemosightRootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background(Color(uiColor: .systemGroupedBackground))
-            .navigationTitle(HemosightStrings.appTitle(for: viewModel.language))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // EN / TH Language Toggle Switch (Menu with flags)
+                // Leading: Compact Language Switcher Pill ("🇹🇭 TH ▾" or "🇺🇸 EN ▾")
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
                         ForEach(AppLanguage.allCases) { lang in
@@ -61,20 +60,41 @@ public struct HemosightRootView: View {
                             }
                         }
                     } label: {
-                        HStack(spacing: 4) {
-                            Text(viewModel.language.toggleButtonLabel)
+                        HStack(spacing: 3) {
+                            Text(viewModel.language.flagEmoji)
+                            Text(viewModel.language.shortLabel)
                                 .appFont(size: 12, weight: .bold)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.blue.opacity(0.12))
-                                .foregroundStyle(Color.blue)
-                                .clipShape(Capsule())
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .bold))
                         }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(Color.blue.opacity(0.12))
+                        .clipShape(Capsule())
                     }
                     .accessibilityLabel(HemosightStrings.languageToggleAccessibilityLabel(current: viewModel.language))
                 }
                 
-                // Reset Workflow Button
+                // Principal: Centered navigation title rendering Sukhumvit Set for Thai subtitle
+                ToolbarItem(placement: .principal) {
+                    if viewModel.language == .thai {
+                        HStack(spacing: 5) {
+                            Text("Hemosight")
+                                .font(.system(size: 17, weight: .bold))
+                            Text("คัดกรอง PAD")
+                                .appFont(size: 14, weight: .semibold)
+                                .foregroundStyle(.secondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Hemosight คัดกรอง PAD")
+                    } else {
+                        Text("Hemosight")
+                            .font(.system(size: 17, weight: .bold))
+                            .accessibilityLabel("Hemosight")
+                    }
+                }
+                
+                // Trailing: Compact Reset Workflow Button ("รีเซ็ต" / "Reset")
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(HemosightStrings.reset(for: viewModel.language)) {
                         viewModel.restartWorkflow()
