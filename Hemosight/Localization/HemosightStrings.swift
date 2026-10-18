@@ -555,4 +555,66 @@ public enum HemosightStrings {
             return language == .thai ? "เข้าใจแล้ว เริ่มต้นการตรวจ" : "Understood, Proceed"
         }
     }
+    
+    // MARK: - Legacy TutorialSheetView Compatibility
+    
+    public static func tutorialTitle(for language: AppLanguage) -> String {
+        language == .thai ? "คำแนะนำการตรวจหลอดเลือด" : "Vascular Screening Instructions"
+    }
+    
+    public static func dontShowAgainCheckbox(for language: AppLanguage) -> String {
+        dontShowAgainForStepCheckbox(for: language)
+    }
+    
+    // Step 1
+    public static func tutorialStep1Title(for language: AppLanguage) -> String {
+        stepTutorialTitle(for: .step1VisualPhoto, language: language)
+    }
+    public static func tutorialStep1Subtitle(for language: AppLanguage) -> String {
+        stepTutorialSubtitle(for: .step1VisualPhoto, language: language)
+    }
+    public static func tutorialStep1Rule(for language: AppLanguage) -> String {
+        language == .thai 
+            ? "ถอดถุงเท้า วางเท้าคู่ขนานบนพื้นราบ ถือโทรศัพท์ด้วย 2 มือเล็งในกรอบสีเขียว" 
+            : "Remove socks, place both feet parallel on flat floor, and frame in green box with both hands."
+    }
+    
+    // Step 2
+    public static func tutorialStep2Title(for language: AppLanguage) -> String {
+        stepTutorialTitle(for: .step2FingerPPG, language: language)
+    }
+    public static func tutorialStep2Subtitle(for language: AppLanguage) -> String {
+        stepTutorialSubtitle(for: .step2FingerPPG, language: language)
+    }
+    public static func tutorialStep2Rule(for language: AppLanguage) -> String {
+        language == .thai 
+            ? "วางปลายนิ้วชี้แตะเบาๆ ปิดเลนส์กล้องหลังและไฟแฟลช อยู่นิ่งๆ 30 วินาที" 
+            : "Gently place index fingertip covering rear camera and flash, holding still for 30 seconds."
+    }
+    
+    // Step 3
+    public static func tutorialStep3Title(for language: AppLanguage) -> String {
+        stepTutorialTitle(for: .step3ToePPG, language: language)
+    }
+    public static func tutorialStep3Subtitle(for language: AppLanguage) -> String {
+        stepTutorialSubtitle(for: .step3ToePPG, language: language)
+    }
+    public static func tutorialStep3Rule(for language: AppLanguage) -> String {
+        language == .thai 
+            ? "นั่งท่าสบาย วางเท้าราบบนแท่นหรือเก้าอี้เตี้ย นำนิ้วหัวแม่เท้าแตะกล้องหลังและแฟลช นิ่ง 30 วินาที" 
+            : "Sit comfortably with foot resting flat on a low stool, big toe over camera and flash for 30s."
+    }
+    
+    // Step 4
+    public static func tutorialStep4Title(for language: AppLanguage) -> String {
+        stepTutorialTitle(for: .step4Dashboard, language: language)
+    }
+    public static func tutorialStep4Subtitle(for language: AppLanguage) -> String {
+        stepTutorialSubtitle(for: .step4Dashboard, language: language)
+    }
+    public static func tutorialStep4Rule(for language: AppLanguage) -> String {
+        language == .thai 
+            ? "ตรวจสอบผลการประเมินความเสี่ยงและส่งออกรายงานสรุปสำหรับแพทย์" 
+            : "Review clinical risk evaluation and export clinical summary report."
+    }
 }
