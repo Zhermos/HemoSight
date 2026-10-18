@@ -130,6 +130,27 @@ public enum HemosightStrings {
         }
     }
     
+    public static func visualCameraButton(for language: AppLanguage) -> String {
+        switch language {
+        case .english: return "Take Photo with Camera"
+        case .thai: return "ถ่ายภาพด้วยกล้อง"
+        }
+    }
+    
+    public static func visualLibraryButton(for language: AppLanguage) -> String {
+        switch language {
+        case .english: return "Choose from Library"
+        case .thai: return "เลือกจากอัลบั้มภาพ"
+        }
+    }
+    
+    public static func cameraUnavailableError(for language: AppLanguage) -> String {
+        switch language {
+        case .english: return "Camera is not available on this device."
+        case .thai: return "ไม่สามารถเปิดกล้องถ่ายภาพได้บนอุปกรณ์นี้"
+        }
+    }
+    
     public static func visualPickButtonHint(for language: AppLanguage) -> String {
         switch language {
         case .english: return "Opens photo library to pick dorsal foot inspection image"
@@ -195,6 +216,44 @@ public enum HemosightStrings {
         switch language {
         case .english: return "LIVE PHOTOPLETHYSMOGRAM (PPG)"
         case .thai: return "สัญญาณคลื่นชีพจรแบบเรียลไทม์ (PPG)"
+        }
+    }
+    
+    public static func pulseRateCardTitle(for language: AppLanguage) -> String {
+        switch language {
+        case .english: return "REAL-TIME PULSE RATE"
+        case .thai: return "อัตราการเต้นของชีพจร"
+        }
+    }
+    
+    public static func pulseRateUnit(for language: AppLanguage) -> String {
+        switch language {
+        case .english: return "BPM"
+        case .thai: return "ครั้ง/นาที"
+        }
+    }
+    
+    public static func pulseRateCalculating(for language: AppLanguage) -> String {
+        switch language {
+        case .english: return "Measuring..."
+        case .thai: return "กำลังวัดค่า..."
+        }
+    }
+    
+    public static func pulseRateAccessibilityLabel(bpm: Int?, language: AppLanguage) -> String {
+        switch language {
+        case .english:
+            if let bpm = bpm {
+                return "Pulse rate: \(bpm) beats per minute"
+            } else {
+                return "Pulse rate: measuring"
+            }
+        case .thai:
+            if let bpm = bpm {
+                return "อัตราชีพจร: \(bpm) ครั้งต่อนาที"
+            } else {
+                return "อัตราชีพจร: กำลังวัดค่า"
+            }
         }
     }
     

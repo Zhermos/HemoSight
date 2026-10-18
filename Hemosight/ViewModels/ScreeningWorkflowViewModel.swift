@@ -63,6 +63,7 @@ public final class ScreeningWorkflowViewModel {
     public var scanSecondsRemaining: Int = 30
     public var currentContactState: CameraContactState = .notCovered
     public var currentSQI: Double = 0.0
+    public var liveBPM: Int? = nil
     
     // Real-time live waveforms for Swift Charts (rolling buffer)
     public var liveWaveformPoints: [PPGDataPoint] = []
@@ -90,6 +91,8 @@ public final class ScreeningWorkflowViewModel {
     private var cancellables = Set<AnyCancellable>()
     private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var sampleCounter: UInt64 = 0
+    @ObservationIgnored private var rollingBpmWindow: [Float] = []
+    @ObservationIgnored private var smoothedBPMValue: Double? = nil
     
     public init(
         visualScanner: any BilateralFootScannerServiceProtocol,
@@ -133,7 +136,11 @@ public final class ScreeningWorkflowViewModel {
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
-                self?.currentContactState = state
+                guard let self = self else { return }
+                self.currentContactState = state
+                if state != .optimal {
+                    self.updateLiveBPM(nil)
+                }
             }
             .store(in: &cancellables)
             
@@ -142,6 +149,9 @@ public final class ScreeningWorkflowViewModel {
             .sink { [weak self] sqi in
                 guard let self = self else { return }
                 self.currentSQI = sqi
+                if sqi < 0.5 {
+                    self.updateLiveBPM(nil)
+                }
                 if self.isRecordingPPG {
                     if self.currentStep == .step2FingerPPG {
                         self.fingerSQISamples.append(sqi)
@@ -164,16 +174,71 @@ public final class ScreeningWorkflowViewModel {
                     self.toeRawSamples.append(point.rawGreen)
                 }
                 
-                // Throttle chart rendering to ~7-8 FPS (every 8th sample) with an 80-point rolling window
+                // Maintain 4-second rolling sliding window (~240 samples) for real-time BPM estimation
+                self.rollingBpmWindow.append(point.rawGreen)
+                if self.rollingBpmWindow.count > 240 {
+                    self.rollingBpmWindow.removeFirst()
+                }
+                
                 self.sampleCounter += 1
+                
+                // Throttle chart rendering to ~7-8 FPS (every 8th sample) with an 80-point rolling window
                 if self.sampleCounter % 8 == 0 {
                     self.liveWaveformPoints.append(point)
                     if self.liveWaveformPoints.count > 80 {
                         self.liveWaveformPoints.removeFirst()
                     }
                 }
+                
+                // Run online BPM estimation every 30 samples (~0.5s) if contact is optimal and at least 3s elapsed (~180 samples)
+                if self.sampleCounter % 30 == 0 && self.sampleCounter >= 180 {
+                    self.processOnlineBPM()
+                }
             }
             .store(in: &cancellables)
+    }
+    
+    private func processOnlineBPM() {
+        guard isRecordingPPG else { return }
+        guard currentContactState == .optimal, currentSQI >= 0.5, rollingBpmWindow.count >= 120 else {
+            updateLiveBPM(nil)
+            return
+        }
+        
+        let windowSnapshot = self.rollingBpmWindow
+        let engine = self.dspEngine
+        
+        // Compute in background Task to preserve MainActor responsiveness
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let rawBPM = engine.estimateInstantaneousBPM(fromWindow: windowSnapshot) else {
+                await MainActor.run {
+                    guard let self = self, self.isRecordingPPG else { return }
+                    self.updateLiveBPM(nil)
+                }
+                return
+            }
+            
+            await MainActor.run {
+                guard let self = self, self.isRecordingPPG else { return }
+                // Apply Exponential Moving Average (EMA) to smooth BPM: alpha = 0.35
+                let alpha = 0.35
+                let smoothed: Double
+                if let previous = self.smoothedBPMValue {
+                    smoothed = (alpha * rawBPM) + ((1.0 - alpha) * previous)
+                } else {
+                    smoothed = rawBPM
+                }
+                self.smoothedBPMValue = smoothed
+                let integerBPM = Int(smoothed.rounded())
+                self.updateLiveBPM(integerBPM)
+            }
+        }
+    }
+    
+    private func updateLiveBPM(_ newBPM: Int?) {
+        if liveBPM != newBPM {
+            liveBPM = newBPM
+        }
     }
     
     // MARK: - Step 1: Visual Photo Analysis
@@ -204,6 +269,9 @@ public final class ScreeningWorkflowViewModel {
         isRecordingPPG = true
         errorMessage = nil
         sampleCounter = 0
+        liveBPM = nil
+        smoothedBPMValue = nil
+        rollingBpmWindow.removeAll()
         
         if currentStep == .step2FingerPPG {
             fingerRawSamples.removeAll()
@@ -249,6 +317,9 @@ public final class ScreeningWorkflowViewModel {
         timerTask?.cancel()
         cameraPPG.stopCapture()
         isRecordingPPG = false
+        liveBPM = nil
+        smoothedBPMValue = nil
+        rollingBpmWindow.removeAll()
     }
     
     private func finishCurrentPPGScan() async {
@@ -336,6 +407,9 @@ public final class ScreeningWorkflowViewModel {
         toeMorphometry = nil
         finalReport = nil
         generatedPDFData = nil
+        liveBPM = nil
+        smoothedBPMValue = nil
+        rollingBpmWindow.removeAll()
         currentStep = .step1VisualPhoto
     }
     
@@ -357,7 +431,8 @@ extension ScreeningWorkflowViewModel {
         isRecordingPPG: Bool = false,
         contactState: CameraContactState = .optimal,
         errorMessage: String? = nil,
-        language: AppLanguage = .english
+        language: AppLanguage = .english,
+        liveBPM: Int? = nil
     ) -> ScreeningWorkflowViewModel {
         let vm = ScreeningWorkflowViewModel()
         vm.language = language
@@ -367,6 +442,7 @@ extension ScreeningWorkflowViewModel {
         vm.isRecordingPPG = isRecordingPPG
         vm.currentContactState = contactState
         vm.errorMessage = errorMessage
+        vm.liveBPM = liveBPM ?? (isRecordingPPG ? 72 : nil)
         if isRecordingPPG {
             vm.scanSecondsRemaining = 18
             vm.liveWaveformPoints = (0..<50).map { i in

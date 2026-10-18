@@ -8,6 +8,7 @@ public struct PPGScanView: View {
     public let site: PPGSite
     public let instruction: String
     @Environment(\.appLanguage) private var appLanguage
+    @State private var isBeating = false
     
     public init(
         viewModel: ScreeningWorkflowViewModel,
@@ -20,7 +21,7 @@ public struct PPGScanView: View {
     }
     
     public var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 16) {
             // Guidance Banner
             guidanceBanner
             
@@ -29,6 +30,9 @@ public struct PPGScanView: View {
             
             // Real-Time Pulsatile Swift Chart
             liveWaveformChart
+            
+            // Real-Time Pulse BPM Card
+            livePulseRateCard
             
             // Countdown Timer Display
             countdownTimerSection
@@ -45,6 +49,26 @@ public struct PPGScanView: View {
             
             // Start / Stop Controls (> 56pt height for accessibility)
             scanActionButtons
+        }
+        .onChange(of: viewModel.isRecordingPPG) { _, isRecording in
+            updateHeartbeatAnimation(isRecording: isRecording)
+        }
+        .onAppear {
+            updateHeartbeatAnimation(isRecording: viewModel.isRecordingPPG)
+        }
+    }
+    
+    private func updateHeartbeatAnimation(isRecording: Bool) {
+        if isRecording {
+            withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
+                isBeating = true
+            }
+        } else {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                isBeating = false
+            }
         }
     }
     
@@ -121,6 +145,62 @@ public struct PPGScanView: View {
         .accessibilityLabel(HemosightStrings.livePPGChartTitle(for: appLanguage))
     }
     
+    private var livePulseRateCard: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color.red.opacity(0.12))
+                    .frame(width: 50, height: 50)
+                
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 26))
+                    .foregroundStyle(.red)
+                    .scaleEffect(viewModel.isRecordingPPG && isBeating ? 1.18 : 1.0)
+            }
+            .accessibilityHidden(true)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(HemosightStrings.pulseRateCardTitle(for: appLanguage))
+                    .appFont(size: appLanguage == .thai ? 11 : 12, weight: .bold)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    if let bpm = viewModel.liveBPM {
+                        Text("\(bpm)")
+                            .font(.system(size: 42, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text(HemosightStrings.pulseRateUnit(for: appLanguage))
+                            .appFont(size: appLanguage == .thai ? 15 : 16, weight: .semibold)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("--")
+                            .font(.system(size: 42, weight: .bold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                        if viewModel.isRecordingPPG {
+                            Text(HemosightStrings.pulseRateCalculating(for: appLanguage))
+                                .appFont(size: appLanguage == .thai ? 13 : 14, weight: .medium)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(HemosightStrings.pulseRateUnit(for: appLanguage))
+                                .appFont(size: appLanguage == .thai ? 15 : 16, weight: .semibold)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color(uiColor: .secondarySystemGroupedBackground))
+        .clipShape(.rect(cornerRadius: 14))
+        .padding(.horizontal)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(HemosightStrings.pulseRateAccessibilityLabel(bpm: viewModel.liveBPM, language: appLanguage))
+    }
+    
     private var countdownTimerSection: some View {
         VStack(spacing: 4) {
             Text("\(viewModel.scanSecondsRemaining)")
@@ -193,7 +273,7 @@ public struct PPGScanView: View {
 
 #Preview("Thai Step 2 - Finger PPG Recording") {
     PPGScanView(
-        viewModel: .preview(step: .step2FingerPPG, isRecordingPPG: true, contactState: .optimal, language: .thai),
+        viewModel: .preview(step: .step2FingerPPG, isRecordingPPG: true, contactState: .optimal, language: .thai, liveBPM: 74),
         site: .finger,
         instruction: "Place your index fingertip gently over the rear camera lens and flash."
     )

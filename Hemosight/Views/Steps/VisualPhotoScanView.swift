@@ -1,11 +1,13 @@
 import SwiftUI
 import PhotosUI
+import UIKit
 
 // MARK: - Step 1: Bilateral Foot Photo Scan View
 
 public struct VisualPhotoScanView: View {
     @Bindable public var viewModel: ScreeningWorkflowViewModel
     @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var isShowingCameraSheet = false
     @Environment(\.appLanguage) private var appLanguage
     
     public init(viewModel: ScreeningWorkflowViewModel) {
@@ -27,8 +29,16 @@ public struct VisualPhotoScanView: View {
             
             Spacer()
             
-            // PhotosPicker Button (> 56pt touch target for accessibility)
-            photoPickerButton
+            // Dual Action Buttons: Camera Capture & Photo Library (> 56pt touch target)
+            actionButtons
+        }
+        .fullScreenCover(isPresented: $isShowingCameraSheet) {
+            CameraCaptureView { capturedImage in
+                Task {
+                    await viewModel.processFootPhoto(capturedImage)
+                }
+            }
+            .ignoresSafeArea()
         }
     }
     
@@ -119,39 +129,68 @@ public struct VisualPhotoScanView: View {
         .accessibilityElement(children: .combine)
     }
     
-    private var photoPickerButton: some View {
-        PhotosPicker(
-            selection: $selectedPhotoItem,
-            matching: .images,
-            photoLibrary: .shared()
-        ) {
-            HStack(spacing: 10) {
-                Image(systemName: "photo.badge.plus")
-                    .font(.title3)
-                Text(HemosightStrings.visualPickButton(for: appLanguage))
-                    .appFont(size: appLanguage == .thai ? 17 : 18, weight: .bold)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(minHeight: 56)
-            .background(Color.blue)
-            .foregroundStyle(.white)
-            .clipShape(.rect(cornerRadius: 14))
-        }
-        .padding(.horizontal)
-        .padding(.bottom, 24)
-        .accessibilityLabel(HemosightStrings.visualPickButton(for: appLanguage))
-        .accessibilityHint(HemosightStrings.visualPickButtonHint(for: appLanguage))
-        .onChange(of: selectedPhotoItem) { _, newItem in
-            guard let newItem else { return }
-            Task {
-                if let data = try? await newItem.loadTransferable(type: Data.self),
-                   let image = UIImage(data: data) {
-                    await viewModel.processFootPhoto(image)
+    private var actionButtons: some View {
+        VStack(spacing: 12) {
+            // Primary Action: Live Camera Capture (> 56pt height)
+            Button {
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    isShowingCameraSheet = true
                 } else {
-                    viewModel.errorMessage = HemosightStrings.visualLoadError(for: appLanguage)
+                    viewModel.errorMessage = HemosightStrings.cameraUnavailableError(for: appLanguage)
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "camera.fill")
+                        .font(.title3)
+                    Text(HemosightStrings.visualCameraButton(for: appLanguage))
+                        .appFont(size: appLanguage == .thai ? 16 : 17, weight: .bold)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 56)
+                .background(Color.blue)
+                .foregroundStyle(.white)
+                .clipShape(.rect(cornerRadius: 14))
+            }
+            .accessibilityLabel(HemosightStrings.visualCameraButton(for: appLanguage))
+            
+            // Secondary Action: Photo Library Picker (> 56pt height)
+            PhotosPicker(
+                selection: $selectedPhotoItem,
+                matching: .images,
+                photoLibrary: .shared()
+            ) {
+                HStack(spacing: 10) {
+                    Image(systemName: "photo.on.rectangle")
+                        .font(.title3)
+                    Text(HemosightStrings.visualLibraryButton(for: appLanguage))
+                        .appFont(size: appLanguage == .thai ? 16 : 17, weight: .semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 56)
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
+                .foregroundStyle(Color.blue)
+                .clipShape(.rect(cornerRadius: 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(Color.blue.opacity(0.3), lineWidth: 1.5)
+                )
+            }
+            .accessibilityLabel(HemosightStrings.visualLibraryButton(for: appLanguage))
+            .accessibilityHint(HemosightStrings.visualPickButtonHint(for: appLanguage))
+            .onChange(of: selectedPhotoItem) { _, newItem in
+                guard let newItem else { return }
+                Task {
+                    if let data = try? await newItem.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        await viewModel.processFootPhoto(image)
+                    } else {
+                        viewModel.errorMessage = HemosightStrings.visualLoadError(for: appLanguage)
+                    }
                 }
             }
         }
+        .padding(.horizontal)
+        .padding(.bottom, 24)
     }
 }
 

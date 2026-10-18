@@ -40,7 +40,7 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
     /// - Parameter image: High-res UIImage showing left and right feet side-by-side.
     /// - Returns: A quantified `VisualIschemiaResult`.
     public func analyzeBilateralDorsalFeet(image: UIImage) async throws -> VisualIschemiaResult {
-        guard let cgImage = image.cgImage else {
+        guard let cgImage = ensureUprightCGImage(from: image) else {
             throw VisualInspectionError.invalidImageData
         }
         
@@ -226,6 +226,27 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
         let b = 200.0 * (fy - fz)
         
         return CIELAB(L: L, a: a, b: b)
+    }
+    
+    // MARK: - Image Orientation Normalization
+    
+    /// Redraws any UIImage into an upright bitmap matching its visual size and orientation.
+    /// Photos captured by the device camera frequently have `.imageOrientation == .right`,
+    /// which would otherwise rotate `cgImage` by 90 degrees and corrupt horizontal foot partitioning.
+    public func ensureUprightCGImage(from image: UIImage) -> CGImage? {
+        guard image.size.width > 0, image.size.height > 0 else { return nil }
+        
+        if image.imageOrientation == .up, let cgImage = image.cgImage {
+            return cgImage
+        }
+        
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1.0
+        let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
+        let normalizedImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+        }
+        return normalizedImage.cgImage
     }
 }
 

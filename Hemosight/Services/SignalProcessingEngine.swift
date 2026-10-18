@@ -215,4 +215,67 @@ public final class SignalProcessingEngine: Sendable {
         
         return pulses
     }
+    
+    // MARK: - Real-Time Sliding-Window BPM Estimation
+    
+    /// Estimates instantaneous heart rate (BPM) from a rolling window of recent samples (~4 seconds, 240 samples at 60 FPS).
+    /// Uses a refractory period of >= 400ms (max 150 BPM) and local thresholding.
+    public func estimateInstantaneousBPM(fromWindow samples: [Float]) -> Double? {
+        guard samples.count >= 120 else { return nil } // Require at least 2 seconds of data
+        
+        // Zero-phase bandpass filter the window
+        let filtered = filterSignal(samples)
+        let n = filtered.count
+        
+        // Compute standard deviation and mean
+        var mean: Float = 0
+        var meanSquare: Float = 0
+        vDSP_meanv(filtered, 1, &mean, vDSP_Length(n))
+        vDSP_measqv(filtered, 1, &meanSquare, vDSP_Length(n))
+        let variance = max(0, meanSquare - (mean * mean))
+        let stdDev = sqrt(variance)
+        
+        // Amplitude check: if signal variation is too low, no pulse is detectable
+        guard stdDev > 0.15 else { return nil }
+        
+        let threshold = mean + (stdDev * 0.25)
+        let minPeakDistance = Int(sampleRate * 0.40) // >= 400ms refractory period (max 150 BPM)
+        
+        var peakIndices: [Int] = []
+        for i in 2..<(n - 2) {
+            let val = filtered[i]
+            if val > threshold &&
+               val > filtered[i - 1] && val > filtered[i - 2] &&
+               val >= filtered[i + 1] && val >= filtered[i + 2] {
+                if let lastPeak = peakIndices.last {
+                    if (i - lastPeak) >= minPeakDistance {
+                        peakIndices.append(i)
+                    }
+                } else {
+                    peakIndices.append(i)
+                }
+            }
+        }
+        
+        // Need at least 2 peaks to calculate an inter-beat interval
+        guard peakIndices.count >= 2 else { return nil }
+        
+        var ibis: [Double] = []
+        for i in 1..<peakIndices.count {
+            let sampleDistance = peakIndices[i] - peakIndices[i - 1]
+            let intervalSec = Double(sampleDistance) / sampleRate
+            // 40 - 150 BPM limits: 0.4s to 1.5s
+            if intervalSec >= 0.40 && intervalSec <= 1.50 {
+                ibis.append(intervalSec)
+            }
+        }
+        
+        guard !ibis.isEmpty else { return nil }
+        
+        let meanIBI = ibis.reduce(0.0, +) / Double(ibis.count)
+        let rawBPM = 60.0 / meanIBI
+        
+        guard rawBPM >= 40.0 && rawBPM <= 150.0 else { return nil }
+        return rawBPM
+    }
 }

@@ -38,14 +38,16 @@ public enum AppLanguage: String, CaseIterable, Identifiable, Sendable, Codable {
     }
     
     /// Returns the appropriate SwiftUI Font based on the active language.
-    /// When language is `.thai`, uses iOS built-in legible Thai typography: "Thonburi" (or "Thonburi-Bold" for bold text).
+    /// When language is `.thai`, uses Apple's official Thai web and branding typeface: "Sukhumvit Set" (SukhumvitSet).
     /// When language is `.english`, uses the standard iOS `.system(size:weight:design:)`.
     public func font(size: CGFloat, weight: Font.Weight = .regular) -> Font {
         switch self {
         case .thai:
-            let isBold = (weight == .bold || weight == .heavy || weight == .black || weight == .semibold)
-            let fontName = isBold ? "Thonburi-Bold" : "Thonburi"
-            return .custom(fontName, size: size)
+            let fontName = thaiFontName(for: weight)
+            if UIFont(name: fontName, size: size) != nil {
+                return .custom(fontName, size: size)
+            }
+            return .system(size: size, weight: weight)
         case .english:
             return .system(size: size, weight: weight)
         }
@@ -55,14 +57,43 @@ public enum AppLanguage: String, CaseIterable, Identifiable, Sendable, Codable {
     public func uiFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
         switch self {
         case .thai:
-            let isBold = (weight == .bold || weight == .heavy || weight == .black || weight == .semibold)
-            let fontName = isBold ? "Thonburi-Bold" : "Thonburi"
+            let fontName = thaiUIFontName(for: weight)
             if let customFont = UIFont(name: fontName, size: size) {
                 return customFont
             }
             return UIFont.systemFont(ofSize: size, weight: weight)
         case .english:
             return UIFont.systemFont(ofSize: size, weight: weight)
+        }
+    }
+    
+    private func thaiFontName(for weight: Font.Weight) -> String {
+        switch weight {
+        case .bold, .heavy, .black:
+            return "SukhumvitSet-Bold"
+        case .semibold:
+            return "SukhumvitSet-SemiBold"
+        case .medium:
+            return "SukhumvitSet-Medium"
+        case .light, .thin, .ultraLight:
+            return "SukhumvitSet-Light"
+        default:
+            return "SukhumvitSet-Text"
+        }
+    }
+    
+    private func thaiUIFontName(for weight: UIFont.Weight) -> String {
+        switch weight {
+        case .bold, .heavy, .black:
+            return "SukhumvitSet-Bold"
+        case .semibold:
+            return "SukhumvitSet-SemiBold"
+        case .medium:
+            return "SukhumvitSet-Medium"
+        case .light, .thin, .ultraLight:
+            return "SukhumvitSet-Light"
+        default:
+            return "SukhumvitSet-Text"
         }
     }
 }

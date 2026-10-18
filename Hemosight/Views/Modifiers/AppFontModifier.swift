@@ -25,16 +25,16 @@ public struct AppFontModifier: ViewModifier {
     public func body(content: Content) -> some View {
         content
             .font(activeLanguage.font(size: size, weight: weight))
-            // Thai tone marks (วรรณยุกต์) exist above and below the glyph body.
-            // Extra line spacing prevents tone marks from clipping in multi-line labels and cards.
-            .lineSpacing(activeLanguage == .thai ? 4.5 : 2.0)
+            // Sukhumvit Set has natural vertical metrics optimized for Thai tone marks (วรรณยุกต์).
+            // Line spacing of 3.0 ensures tone marks never clip while maintaining cohesive paragraph density.
+            .lineSpacing(activeLanguage == .thai ? 3.0 : 2.0)
     }
 }
 
 // MARK: - View Extension
 
 extension View {
-    /// Applies language-aware typography with full support for legible Thai glyphs (Thonburi) and tone-mark clearance.
+    /// Applies language-aware typography with full support for Apple's official Thai typeface (Sukhumvit Set) and tone-mark clearance.
     public func appFont(
         size: CGFloat,
         weight: Font.Weight = .regular,
@@ -51,7 +51,7 @@ extension View {
 
 // MARK: - Previews
 
-#Preview("Thai Typography - Thonburi Font") {
+#Preview("Thai Typography - Sukhumvit Set - Apple Thai Typeface") {
     VStack(alignment: .leading, spacing: 16) {
         Text("ขั้นตอนที่ 1: ถ่ายภาพหลังเท้าทั้งสองข้าง")
             .appFont(size: 20, weight: .bold, language: .thai)
