@@ -539,19 +539,7 @@ public enum HemosightStrings {
                 ]
             }
         case .step4Dashboard:
-            if language == .thai {
-                return [
-                    "ตรวจสอบระดับความเสี่ยง (เขียว/เหลือง/แดง) และคะแนน PAD Risk Score",
-                    "อ่านคำแนะนำทางการแพทย์และข้อสังเกตความแตกต่างของคลื่นชีพจร",
-                    "กดปุ่ม 'แชร์รายงาน PDF' เพื่อส่งผลตรวจอย่างเป็นทางการให้แพทย์ผู้เชี่ยวชาญ"
-                ]
-            } else {
-                return [
-                    "Review risk level (Low/Moderate/High) and composite PAD Risk Score",
-                    "Examine clinical observations and bilateral pulse wave disparities",
-                    "Tap 'Share Clinical PDF' to export formal report to your healthcare provider"
-                ]
-            }
+            return []
         }
     }
     
@@ -564,7 +552,7 @@ public enum HemosightStrings {
         case .step3ToePPG:
             return language == .thai ? "เข้าใจแล้ว เริ่มตรวจชีพจรนิ้วเท้า" : "Understood, Start Toe Pulse"
         case .step4Dashboard:
-            return language == .thai ? "เข้าใจแล้ว ดูผลการประเมิน" : "Understood, View Results"
+            return language == .thai ? "เข้าใจแล้ว เริ่มต้นการตรวจ" : "Understood, Proceed"
         }
     }
     

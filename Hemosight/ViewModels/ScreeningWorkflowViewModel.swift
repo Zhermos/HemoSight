@@ -70,6 +70,7 @@ public final class ScreeningWorkflowViewModel {
     }
     
     public func checkAndTriggerTutorial(for step: ScreeningStep) {
+        guard step != .step4Dashboard else { return }
         if !isTutorialSuppressed(for: step) {
             activeTutorialStep = step
         }
@@ -79,7 +80,8 @@ public final class ScreeningWorkflowViewModel {
         if isRecordingPPG {
             stopPPGScanEarly()
         }
-        activeTutorialStep = currentStep
+        let stepToShow = (currentStep == .step4Dashboard ? .step1VisualPhoto : currentStep)
+        activeTutorialStep = stepToShow
     }
     
     public func dismissActiveTutorial() {
@@ -146,6 +148,7 @@ public final class ScreeningWorkflowViewModel {
            let appLang = AppLanguage(rawValue: storedLang) {
             self.language = appLang
         }
+        checkAndTriggerTutorial(for: .step1VisualPhoto)
         bindCameraStreams()
     }
     
@@ -387,7 +390,6 @@ public final class ScreeningWorkflowViewModel {
             // Finalize overall diagnosis and generate report
             finalizeScreeningAssessment()
             currentStep = .step4Dashboard
-            checkAndTriggerTutorial(for: .step4Dashboard)
         }
     }
     
@@ -450,6 +452,7 @@ public final class ScreeningWorkflowViewModel {
         smoothedBPMValue = nil
         rollingBpmWindow.removeAll()
         currentStep = .step1VisualPhoto
+        checkAndTriggerTutorial(for: .step1VisualPhoto)
     }
     
     private func triggerHapticFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {
