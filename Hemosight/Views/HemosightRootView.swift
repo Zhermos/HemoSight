@@ -27,13 +27,13 @@ public struct HemosightRootView: View {
                         PPGScanView(
                             viewModel: viewModel,
                             site: .finger,
-                            instruction: "Place your index fingertip gently over the rear camera lens and flash."
+                            instruction: HemosightStrings.ppgInstruction(for: .finger, language: viewModel.language)
                         )
                     case .step3ToePPG:
                         PPGScanView(
                             viewModel: viewModel,
                             site: .toe,
-                            instruction: "Rest your big toe gently over the rear camera lens and flash while seated comfortably."
+                            instruction: HemosightStrings.ppgInstruction(for: .toe, language: viewModel.language)
                         )
                     case .step4Dashboard:
                         ClinicalDashboardView(viewModel: viewModel)
@@ -42,24 +42,61 @@ public struct HemosightRootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background(Color(uiColor: .systemGroupedBackground))
-            .navigationTitle("Hemosight")
+            .navigationTitle(HemosightStrings.appTitle(for: viewModel.language))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // EN / TH Language Toggle Switch (Menu with flags)
+                ToolbarItem(placement: .topBarLeading) {
+                    Menu {
+                        ForEach(AppLanguage.allCases) { lang in
+                            Button {
+                                viewModel.language = lang
+                            } label: {
+                                HStack {
+                                    Text("\(lang.flagEmoji) \(lang.displayName)")
+                                    if viewModel.language == lang {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(viewModel.language.toggleButtonLabel)
+                                .appFont(size: 12, weight: .bold)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.blue.opacity(0.12))
+                                .foregroundStyle(Color.blue)
+                                .clipShape(Capsule())
+                        }
+                    }
+                    .accessibilityLabel(HemosightStrings.languageToggleAccessibilityLabel(current: viewModel.language))
+                }
+                
+                // Reset Workflow Button
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Reset") {
+                    Button(HemosightStrings.reset(for: viewModel.language)) {
                         viewModel.restartWorkflow()
                     }
-                    .font(.subheadline)
+                    .appFont(size: 14, weight: .medium)
                     .foregroundStyle(.secondary)
-                    .accessibilityLabel("Reset screening workflow")
+                    .accessibilityLabel(HemosightStrings.resetAccessibilityHint(for: viewModel.language))
                 }
             }
         }
+        .environment(\.appLanguage, viewModel.language)
     }
 }
 
 // MARK: - Previews
 
-#Preview("Hemosight Root - Workflow Container") {
+#Preview("Hemosight Root - Thai Language") {
     HemosightRootView()
+        .environment(\.appLanguage, .thai)
+}
+
+#Preview("Hemosight Root - English Language") {
+    HemosightRootView()
+        .environment(\.appLanguage, .english)
 }

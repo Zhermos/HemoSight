@@ -33,7 +33,26 @@ public enum PADRiskLevel: String, Codable, Sendable {
             return "Significant distal pulse attenuation (damping/delayed systolic upstroke) or marked unilateral pallor. Immediate clinical referral for Ankle-Brachial Index (ABI) and Arterial Duplex Ultrasound strongly advised."
         }
     }
+    
+    public func localizedTitle(for language: AppLanguage) -> String {
+        HemosightStrings.riskTierTitle(for: self, language: language)
+    }
+    
+    public func localizedSummary(for language: AppLanguage) -> String {
+        HemosightStrings.clinicalSummary(for: self, language: language)
+    }
 }
+
+extension PPGSite {
+    public func localizedTitle(for language: AppLanguage) -> String {
+        HemosightStrings.ppgSiteTitle(for: self, language: language)
+    }
+    
+    public func localizedInstruction(for language: AppLanguage) -> String {
+        HemosightStrings.ppgInstruction(for: self, language: language)
+    }
+}
+
 
 /// CIE L*a*b* Disparity and Computer Vision Pallor Assessment.
 public struct VisualIschemiaResult: Codable, Sendable {

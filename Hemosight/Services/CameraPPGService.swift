@@ -10,7 +10,12 @@ public enum CameraContactState: String, Sendable {
     case tooLight = "Light leak detected — cover the lens completely"
     case overPressed = "Pressing too hard — relax pressure slightly to avoid blanching vessels"
     case optimal = "Signal Quality Optimal — keep steady"
+    
+    public func localizedMessage(for language: AppLanguage) -> String {
+        HemosightStrings.contactQuality(for: self, language: language)
+    }
 }
+
 
 /// Errors occurring during camera PPG stream acquisition.
 public enum CameraPPGError: LocalizedError {

@@ -5,6 +5,7 @@ import SwiftUI
 public struct ClinicalDashboardView: View {
     @Bindable public var viewModel: ScreeningWorkflowViewModel
     @State private var activeShareSheetItem: ShareablePDFItem?
+    @Environment(\.appLanguage) private var appLanguage
     
     public init(viewModel: ScreeningWorkflowViewModel) {
         self.viewModel = viewModel
@@ -39,20 +40,23 @@ public struct ClinicalDashboardView: View {
     // MARK: - Subviews
     
     private func riskBadgeCard(report: ComprehensivePADReport) -> some View {
-        VStack(spacing: 12) {
-            Text(report.overallRiskLevel.rawValue.uppercased())
-                .font(.title2.weight(.black))
+        VStack(spacing: 10) {
+            Text(report.overallRiskLevel.localizedTitle(for: appLanguage).uppercased())
+                .appFont(size: appLanguage == .thai ? 20 : 22, weight: .black)
                 .foregroundStyle(report.overallRiskLevel.displayColor)
+                .multilineTextAlignment(.center)
+                .toneMarkSafePadding(.bottom, 2)
             
-            Text("Vascular Risk Score: \(Int(report.compositeRiskScore)) / 100")
-                .font(.headline)
+            Text(HemosightStrings.riskScoreTitle(score: Int(report.compositeRiskScore), language: appLanguage))
+                .appFont(size: appLanguage == .thai ? 15 : 17, weight: .bold)
                 .foregroundStyle(.secondary)
             
-            Text(report.overallRiskLevel.clinicalSummary)
-                .font(.callout)
+            Text(report.overallRiskLevel.localizedSummary(for: appLanguage))
+                .appFont(size: appLanguage == .thai ? 14 : 15, weight: .regular)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.primary)
                 .padding(.horizontal)
+                .toneMarkSafePadding(.vertical, 2)
         }
         .frame(maxWidth: .infinity)
         .padding()
@@ -64,33 +68,34 @@ public struct ClinicalDashboardView: View {
         )
         .padding(.horizontal)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Overall Risk: \(report.overallRiskLevel.rawValue), Risk Score: \(Int(report.compositeRiskScore)) out of 100")
+        .accessibilityLabel("\(report.overallRiskLevel.localizedTitle(for: appLanguage)), \(HemosightStrings.riskScoreTitle(score: Int(report.compositeRiskScore), language: appLanguage))")
     }
     
     private func metricsSummaryCard(report: ComprehensivePADReport) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("VASCULAR SCREENING METRICS")
-                .font(.caption.weight(.bold))
+            Text(HemosightStrings.metricsSectionTitle(for: appLanguage))
+                .appFont(size: appLanguage == .thai ? 12 : 11, weight: .bold)
                 .foregroundStyle(.secondary)
+                .toneMarkSafePadding(.bottom, 1)
             
             MetricRow(
-                label: "Bilateral Skin Color Disparity (ΔE)",
+                label: HemosightStrings.metricColorDisparityLabel(for: appLanguage),
                 value: String(format: "%.2f", report.visualResult.deltaE),
-                status: report.visualResult.deltaE > 4.5 ? "Disparity Flagged" : "Normal",
+                status: HemosightStrings.metricColorDisparityStatus(isWarning: report.visualResult.deltaE > 4.5, language: appLanguage),
                 isWarning: report.visualResult.deltaE > 4.5
             )
             
             MetricRow(
-                label: "Toe Systolic Rise Time (SRT)",
+                label: HemosightStrings.metricSRTLabel(for: appLanguage),
                 value: "\(Int(report.hemodynamicResult.toeMorphometry.meanSystolicRiseTimeMs)) ms",
-                status: report.hemodynamicResult.toeMorphometry.meanSystolicRiseTimeMs > 180 ? "Prolonged / Damped" : "Crisp Upstroke",
+                status: HemosightStrings.metricSRTStatus(isWarning: report.hemodynamicResult.toeMorphometry.meanSystolicRiseTimeMs > 180, language: appLanguage),
                 isWarning: report.hemodynamicResult.toeMorphometry.meanSystolicRiseTimeMs > 180
             )
             
             MetricRow(
-                label: "Toe-to-Finger Amplitude Ratio",
+                label: HemosightStrings.metricAmplitudeRatioLabel(for: appLanguage),
                 value: String(format: "%.2f", report.hemodynamicResult.amplitudeRatio),
-                status: report.hemodynamicResult.amplitudeRatio < 0.35 ? "Diminished" : "Robust Perfusion",
+                status: HemosightStrings.metricAmplitudeRatioStatus(isWarning: report.hemodynamicResult.amplitudeRatio < 0.35, language: appLanguage),
                 isWarning: report.hemodynamicResult.amplitudeRatio < 0.35
             )
         }
@@ -101,17 +106,27 @@ public struct ClinicalDashboardView: View {
     }
     
     private func recommendationsCard(report: ComprehensivePADReport) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Next Steps & Recommendations", systemImage: "cross.case.fill")
-                .font(.headline)
-                .foregroundStyle(.blue)
+        VStack(alignment: .leading, spacing: 10) {
+            Label {
+                Text(HemosightStrings.recommendationsHeader(for: appLanguage))
+                    .appFont(size: appLanguage == .thai ? 16 : 17, weight: .bold)
+            } icon: {
+                Image(systemName: "cross.case.fill")
+                    .foregroundStyle(.blue)
+            }
+            .toneMarkSafePadding(.bottom, 2)
             
             ForEach(report.recommendations, id: \.self) { rec in
+                let localized = HemosightStrings.localizeRecommendation(rec, language: appLanguage)
                 HStack(alignment: .top, spacing: 8) {
-                    Text("•").bold()
-                    Text(rec).font(.subheadline)
+                    Text("•")
+                        .appFont(size: 15, weight: .bold)
+                        .foregroundStyle(.blue)
+                    Text(localized)
+                        .appFont(size: appLanguage == .thai ? 13.5 : 14, weight: .regular)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .foregroundStyle(.secondary)
             }
         }
         .padding()
@@ -126,10 +141,11 @@ public struct ClinicalDashboardView: View {
                 activeShareSheetItem = ShareablePDFItem(data: pdfData)
             }
         } label: {
-            HStack {
+            HStack(spacing: 10) {
                 Image(systemName: "square.and.arrow.up.fill")
-                Text("Share Clinical PDF to Doctor")
-                    .font(.title3.weight(.bold))
+                    .font(.title3)
+                Text(HemosightStrings.sharePDFButton(for: appLanguage))
+                    .appFont(size: appLanguage == .thai ? 16 : 17, weight: .bold)
             }
             .frame(maxWidth: .infinity)
             .frame(minHeight: 56)
@@ -139,20 +155,24 @@ public struct ClinicalDashboardView: View {
         }
         .padding(.horizontal)
         .padding(.top, 8)
-        .accessibilityLabel("Share Clinical PDF to Doctor")
+        .accessibilityLabel(HemosightStrings.sharePDFButton(for: appLanguage))
         .disabled(viewModel.generatedPDFData == nil)
     }
     
     private var synthesizingPlaceholder: some View {
-        ProgressView("Synthesizing clinical findings...")
-            .padding(40)
-            .accessibilityLabel("Synthesizing clinical findings")
+        ProgressView {
+            Text(HemosightStrings.synthesizingReport(for: appLanguage))
+                .appFont(size: 14, weight: .medium)
+                .padding(.top, 4)
+        }
+        .padding(40)
+        .accessibilityLabel(HemosightStrings.synthesizingReport(for: appLanguage))
     }
 }
 
 // MARK: - Previews
 
-#Preview("Step 4 - Low Risk Assessment") {
+#Preview("Thai Step 4 - Low Risk Assessment") {
     ClinicalDashboardView(
         viewModel: .preview(
             step: .step4Dashboard,
@@ -160,16 +180,18 @@ public struct ClinicalDashboardView: View {
                 overallRiskLevel: .low,
                 compositeRiskScore: 12.0,
                 recommendations: [
-                    "Normal bilateral perfusion findings.",
+                    "Normal bilateral perfusion findings. Continue routine cardiovascular wellness and foot skin hygiene.",
                     "Continue routine annual vascular monitoring.",
                     "Maintain healthy diet and regular physical activity."
                 ]
-            )
+            ),
+            language: .thai
         )
     )
+    .environment(\.appLanguage, .thai)
 }
 
-#Preview("Step 4 - High Risk Assessment") {
+#Preview("Thai Step 4 - High Risk Assessment") {
     ClinicalDashboardView(
         viewModel: .preview(
             step: .step4Dashboard,
@@ -184,17 +206,27 @@ public struct ClinicalDashboardView: View {
                 overallRiskLevel: .high,
                 compositeRiskScore: 78.0,
                 recommendations: [
-                    "High probability of hemodynamically significant arterial occlusive disease.",
-                    "Urgent referral for Ankle-Brachial Index (ABI) and Arterial Duplex Ultrasound.",
-                    "Vascular specialist consultation recommended within 7 days."
+                    "URGENT: Schedule in-person clinical evaluation for formal Ankle-Brachial Index (ABI) and Arterial Duplex Ultrasound.",
+                    "Severe pulse upstroke delay detected at toe (SRT > 220 ms), characteristic of proximal arterial stenosis.",
+                    "Marked attenuation of distal microcirculatory pulse volume (Toe-to-Finger Ratio < 0.20)."
                 ]
-            )
+            ),
+            language: .thai
         )
     )
+    .environment(\.appLanguage, .thai)
 }
 
-#Preview("Step 4 - Synthesizing Loading State") {
+#Preview("English Step 4 - Low Risk Assessment") {
     ClinicalDashboardView(
-        viewModel: .preview(step: .step4Dashboard, report: nil)
+        viewModel: .preview(
+            step: .step4Dashboard,
+            report: .fixture(
+                overallRiskLevel: .low,
+                compositeRiskScore: 12.0
+            ),
+            language: .english
+        )
     )
+    .environment(\.appLanguage, .english)
 }

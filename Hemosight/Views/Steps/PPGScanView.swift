@@ -7,6 +7,7 @@ public struct PPGScanView: View {
     @Bindable public var viewModel: ScreeningWorkflowViewModel
     public let site: PPGSite
     public let instruction: String
+    @Environment(\.appLanguage) private var appLanguage
     
     public init(
         viewModel: ScreeningWorkflowViewModel,
@@ -34,7 +35,7 @@ public struct PPGScanView: View {
             
             if let error = viewModel.errorMessage {
                 Text(error)
-                    .font(.callout.weight(.semibold))
+                    .appFont(size: 14, weight: .semibold)
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
@@ -51,15 +52,17 @@ public struct PPGScanView: View {
     
     private var guidanceBanner: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
+            HStack(spacing: 8) {
                 Image(systemName: site == .finger ? "hand.point.up.fill" : "figure.walk")
                     .font(.title2)
                     .foregroundStyle(.blue)
-                Text(site.rawValue)
-                    .font(.title3.weight(.bold))
+                Text(HemosightStrings.ppgSiteTitle(for: site, language: appLanguage))
+                    .appFont(size: appLanguage == .thai ? 17 : 18, weight: .bold)
             }
-            Text(instruction)
-                .font(.body)
+            .toneMarkSafePadding(.bottom, 1)
+            
+            Text(HemosightStrings.ppgInstruction(for: site, language: appLanguage))
+                .appFont(size: appLanguage == .thai ? 14 : 15, weight: .regular)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -75,16 +78,17 @@ public struct PPGScanView: View {
             Circle()
                 .fill(contactColor)
                 .frame(width: 12, height: 12)
-            Text(viewModel.currentContactState.rawValue)
-                .font(.subheadline.weight(.semibold))
+            Text(viewModel.currentContactState.localizedMessage(for: appLanguage))
+                .appFont(size: appLanguage == .thai ? 13 : 14, weight: .semibold)
                 .foregroundStyle(contactColor)
+                .multilineTextAlignment(.center)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(Color(uiColor: .secondarySystemGroupedBackground))
         .clipShape(Capsule())
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Sensor Contact: \(viewModel.currentContactState.rawValue)")
+        .accessibilityLabel(viewModel.currentContactState.localizedMessage(for: appLanguage))
     }
     
     private var contactColor: Color {
@@ -93,8 +97,8 @@ public struct PPGScanView: View {
     
     private var liveWaveformChart: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("LIVE PHOTOPLETHYSMOGRAM (PPG)")
-                .font(.caption.weight(.bold))
+            Text(HemosightStrings.livePPGChartTitle(for: appLanguage))
+                .appFont(size: appLanguage == .thai ? 11 : 12, weight: .bold)
                 .foregroundStyle(.secondary)
             
             Chart(viewModel.liveWaveformPoints) { point in
@@ -114,7 +118,7 @@ public struct PPGScanView: View {
         }
         .padding(.horizontal)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Live Photoplethysmogram signal display")
+        .accessibilityLabel(HemosightStrings.livePPGChartTitle(for: appLanguage))
     }
     
     private var countdownTimerSection: some View {
@@ -122,12 +126,12 @@ public struct PPGScanView: View {
             Text("\(viewModel.scanSecondsRemaining)")
                 .font(.system(size: 52, weight: .black, design: .rounded))
                 .foregroundStyle(viewModel.isRecordingPPG ? Color.blue : Color.secondary)
-            Text("SECONDS REMAINING")
-                .font(.caption.weight(.semibold))
+            Text(HemosightStrings.secondsRemainingLabel(for: appLanguage))
+                .appFont(size: appLanguage == .thai ? 12 : 11, weight: .semibold)
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(viewModel.scanSecondsRemaining) seconds remaining")
+        .accessibilityLabel("\(viewModel.scanSecondsRemaining) \(HemosightStrings.secondsRemainingLabel(for: appLanguage))")
     }
     
     @ViewBuilder
@@ -138,10 +142,11 @@ public struct PPGScanView: View {
                     await viewModel.startCurrentPPGScan()
                 }
             } label: {
-                HStack {
+                HStack(spacing: 10) {
                     Image(systemName: "record.circle")
-                    Text("Start 30s \(site == .finger ? "Finger" : "Toe") Scan")
-                        .font(.title3.weight(.bold))
+                        .font(.title3)
+                    Text(HemosightStrings.startScanButton(site: site, language: appLanguage))
+                        .appFont(size: appLanguage == .thai ? 17 : 18, weight: .bold)
                 }
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 56)
@@ -151,15 +156,16 @@ public struct PPGScanView: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
-            .accessibilityLabel("Start 30 second \(site == .finger ? "Finger" : "Toe") Scan")
+            .accessibilityLabel(HemosightStrings.startScanButton(site: site, language: appLanguage))
         } else {
             Button(role: .destructive) {
                 viewModel.stopPPGScanEarly()
             } label: {
-                HStack {
+                HStack(spacing: 10) {
                     Image(systemName: "stop.fill")
-                    Text("Cancel Scan")
-                        .font(.title3.weight(.bold))
+                        .font(.title3)
+                    Text(HemosightStrings.cancelScanButton(for: appLanguage))
+                        .appFont(size: appLanguage == .thai ? 17 : 18, weight: .bold)
                 }
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 56)
@@ -169,33 +175,36 @@ public struct PPGScanView: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
-            .accessibilityLabel("Cancel current scan")
+            .accessibilityLabel(HemosightStrings.cancelScanButton(for: appLanguage))
         }
     }
 }
 
 // MARK: - Previews
 
-#Preview("Step 2 - Finger PPG Idle") {
+#Preview("Thai Step 2 - Finger PPG Idle") {
     PPGScanView(
-        viewModel: .preview(step: .step2FingerPPG),
+        viewModel: .preview(step: .step2FingerPPG, language: .thai),
         site: .finger,
         instruction: "Place your index fingertip gently over the rear camera lens and flash."
     )
+    .environment(\.appLanguage, .thai)
 }
 
-#Preview("Step 2 - Finger PPG Recording") {
+#Preview("Thai Step 2 - Finger PPG Recording") {
     PPGScanView(
-        viewModel: .preview(step: .step2FingerPPG, isRecordingPPG: true, contactState: .optimal),
+        viewModel: .preview(step: .step2FingerPPG, isRecordingPPG: true, contactState: .optimal, language: .thai),
         site: .finger,
         instruction: "Place your index fingertip gently over the rear camera lens and flash."
     )
+    .environment(\.appLanguage, .thai)
 }
 
-#Preview("Step 3 - Toe PPG Idle") {
+#Preview("English Step 3 - Toe PPG Idle") {
     PPGScanView(
-        viewModel: .preview(step: .step3ToePPG),
+        viewModel: .preview(step: .step3ToePPG, language: .english),
         site: .toe,
         instruction: "Rest your big toe gently over the rear camera lens and flash while seated comfortably."
     )
+    .environment(\.appLanguage, .english)
 }

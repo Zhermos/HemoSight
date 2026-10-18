@@ -9,8 +9,26 @@ public protocol ReportGenerationServiceProtocol: Sendable {
         report: ComprehensivePADReport,
         footImage: UIImage?,
         fingerWaveformSamples: [Float],
-        toeWaveformSamples: [Float]
+        toeWaveformSamples: [Float],
+        language: AppLanguage
     ) -> Data
+}
+
+extension ReportGenerationServiceProtocol {
+    public func generatePDFReport(
+        report: ComprehensivePADReport,
+        footImage: UIImage?,
+        fingerWaveformSamples: [Float],
+        toeWaveformSamples: [Float]
+    ) -> Data {
+        generatePDFReport(
+            report: report,
+            footImage: footImage,
+            fingerWaveformSamples: fingerWaveformSamples,
+            toeWaveformSamples: toeWaveformSamples,
+            language: .english
+        )
+    }
 }
 
 /// Generates a standardized, professional 1-page clinical PDF summary for primary care physicians or vascular specialists.
@@ -24,13 +42,18 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
         report: ComprehensivePADReport,
         footImage: UIImage?,
         fingerWaveformSamples: [Float],
-        toeWaveformSamples: [Float]
+        toeWaveformSamples: [Float],
+        language: AppLanguage = .english
     ) -> Data {
+        
+        let pdfTitle = (language == .thai)
+            ? "สรุปผลการตรวจคัดกรองโรคหลอดเลือดแดงส่วนปลาย (Clinical PAD Screening Summary)"
+            : "Clinical Peripheral Artery Disease Screening Summary"
         
         let pdfMetaData = [
             kCGPDFContextCreator: "Hemosight v1.0",
             kCGPDFContextAuthor: "Hemosight Clinical Screening Engine",
-            kCGPDFContextTitle: "Clinical Peripheral Artery Disease Screening Summary"
+            kCGPDFContextTitle: pdfTitle
         ]
         
         let format = UIGraphicsPDFRendererFormat()
@@ -54,21 +77,30 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
             let headerRect = CGRect(x: marginX, y: cursorY, width: contentWidth, height: 44.0)
             let headerStyle = NSMutableParagraphStyle()
             headerStyle.alignment = .left
+            if language == .thai {
+                headerStyle.lineSpacing = 3.0
+            }
             
             let titleAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 20, weight: .bold),
+                .font: language.uiFont(size: 19, weight: .bold),
                 .foregroundColor: UIColor.systemBlue,
                 .paragraphStyle: headerStyle
             ]
-            "HEMOSIGHT™ | Clinical Vascular Screening Summary".draw(in: headerRect, withAttributes: titleAttributes)
+            let mainHeaderTitle = (language == .thai)
+                ? "HEMOSIGHT™ | สรุปผลการตรวจคัดกรองหลอดเลือดส่วนปลาย"
+                : "HEMOSIGHT™ | Clinical Vascular Screening Summary"
+            mainHeaderTitle.draw(in: headerRect, withAttributes: titleAttributes)
             cursorY += 28.0
             
             let subtitleAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 10, weight: .regular),
+                .font: language.uiFont(size: 10, weight: .regular),
                 .foregroundColor: UIColor.secondaryLabel
             ]
             let dateStr = DateFormatter.localizedString(from: report.timestamp, dateStyle: .medium, timeStyle: .short)
-            "Dual-Site Photoplethysmography & Computer Vision Pallor Analysis  •  Generated: \(dateStr)".draw(
+            let subtitle = (language == .thai)
+                ? "Dual-Site PPG & การประมวลผลภาพความสมดุลของสีผิว  •  สร้างเมื่อ: \(dateStr)"
+                : "Dual-Site Photoplethysmography & Computer Vision Pallor Analysis  •  Generated: \(dateStr)"
+            subtitle.draw(
                 in: CGRect(x: marginX, y: cursorY, width: contentWidth, height: 16),
                 withAttributes: subtitleAttributes
             )
@@ -91,13 +123,17 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
             cardColor.setFill()
             cardPath.fill()
             
-            let patientInfo = "Patient: \(report.patientName)   |   Age: \(report.patientAge) yrs   |   ID: \(report.reportID.uuidString.prefix(8))"
+            let patientInfo = (language == .thai)
+                ? "ผู้รับการตรวจ: \(report.patientName)   |   อายุ: \(report.patientAge) ปี   |   รหัสรายงาน: \(report.reportID.uuidString.prefix(8))"
+                : "Patient: \(report.patientName)   |   Age: \(report.patientAge) yrs   |   ID: \(report.reportID.uuidString.prefix(8))"
             patientInfo.draw(
                 in: CGRect(x: marginX + 12, y: cursorY + 10, width: contentWidth - 24, height: 18),
-                withAttributes: [.font: UIFont.systemFont(ofSize: 11, weight: .semibold), .foregroundColor: UIColor.darkGray]
+                withAttributes: [.font: language.uiFont(size: 11, weight: .semibold), .foregroundColor: UIColor.darkGray]
             )
             
-            let riskTitle = "OVERALL STATUS: \(report.overallRiskLevel.rawValue.uppercased())  (Risk Score: \(Int(report.compositeRiskScore))/100)"
+            let riskTitle = (language == .thai)
+                ? "สถานะความเสี่ยง: \(report.overallRiskLevel.localizedTitle(for: .thai).uppercased())  (คะแนน: \(Int(report.compositeRiskScore))/100)"
+                : "OVERALL STATUS: \(report.overallRiskLevel.rawValue.uppercased())  (Risk Score: \(Int(report.compositeRiskScore))/100)"
             let riskColor: UIColor
             switch report.overallRiskLevel {
             case .low: riskColor = UIColor.systemGreen
@@ -106,16 +142,19 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
             }
             riskTitle.draw(
                 in: CGRect(x: marginX + 12, y: cursorY + 32, width: contentWidth - 24, height: 22),
-                withAttributes: [.font: UIFont.systemFont(ofSize: 13, weight: .black), .foregroundColor: riskColor]
+                withAttributes: [.font: language.uiFont(size: 13, weight: .bold), .foregroundColor: riskColor]
             )
             cursorY += cardHeight + 14.0
             
             // 3. Modality 1: Bilateral Foot Visual Inspection
             let sectionHeaderAttr: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 13, weight: .bold),
+                .font: language.uiFont(size: 13, weight: .bold),
                 .foregroundColor: UIColor.label
             ]
-            "1. Bilateral Dorsal Foot Visual Chromaticity (Vision & CIE L*a*b*)".draw(
+            let section1Title = (language == .thai)
+                ? "1. การวิเคราะห์ภาพถ่ายหลังเท้าทั้งสองข้าง (Vision & CIE L*a*b*)"
+                : "1. Bilateral Dorsal Foot Visual Chromaticity (Vision & CIE L*a*b*)"
+            section1Title.draw(
                 in: CGRect(x: marginX, y: cursorY, width: contentWidth, height: 18),
                 withAttributes: sectionHeaderAttr
             )
@@ -131,9 +170,10 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
                 let placeholderPath = UIBezierPath(roundedRect: photoRect, cornerRadius: 4)
                 UIColor.systemGray5.setFill()
                 placeholderPath.fill()
-                "Foot Photo".draw(
+                let photoPlaceholder = (language == .thai) ? "ภาพหลังเท้า" : "Foot Photo"
+                photoPlaceholder.draw(
                     in: CGRect(x: marginX + 25, y: cursorY + 36, width: 90, height: 20),
-                    withAttributes: [.font: UIFont.systemFont(ofSize: 11), .foregroundColor: UIColor.secondaryLabel]
+                    withAttributes: [.font: language.uiFont(size: 11), .foregroundColor: UIColor.secondaryLabel]
                 )
             }
             
@@ -141,18 +181,28 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
             let metricsWidth = contentWidth - photoWidth - 16.0
             var metricY = cursorY
             
-            let visMetrics = [
-                ("Bilateral Color Disparity (CIE ΔE):", String(format: "%.2f (Normal < 3.5)", report.visualResult.deltaE)),
-                ("Lightness Disparity (ΔL*):", String(format: "%+.1f L* (Left: %.1f vs Right: %.1f)", report.visualResult.lightnessDisparity, report.visualResult.leftFootLightness, report.visualResult.rightFootLightness)),
-                ("Unilateral Blanching / Pallor:", report.visualResult.isClinicallyAsymmetric ? "DETECTED" : "None"),
-                ("Trophic Risk Flags:", report.visualResult.trophicRiskFlags.isEmpty ? "No abnormal trophic signs" : report.visualResult.trophicRiskFlags.joined(separator: ", "))
-            ]
+            let visMetrics: [(String, String)]
+            if language == .thai {
+                visMetrics = [
+                    ("ความไม่สมมาตรของสีผิว (CIE ΔE):", String(format: "%.2f (ปกติ < 3.5)", report.visualResult.deltaE)),
+                    ("ระดับความซีด (ΔL*):", String(format: "%+.1f L* (ซ้าย: %.1f vs ขวา: %.1f)", report.visualResult.lightnessDisparity, report.visualResult.leftFootLightness, report.visualResult.rightFootLightness)),
+                    ("ภาวะซีดขาวเฉพาะข้าง:", report.visualResult.isClinicallyAsymmetric ? "ตรวจพบ (DETECTED)" : "ไม่พบ (None)"),
+                    ("สัญญาณการเสื่อมของเนื้อเยื่อ:", report.visualResult.trophicRiskFlags.isEmpty ? "ไม่พบสัญญาณผิดปกติ" : report.visualResult.trophicRiskFlags.joined(separator: ", "))
+                ]
+            } else {
+                visMetrics = [
+                    ("Bilateral Color Disparity (CIE ΔE):", String(format: "%.2f (Normal < 3.5)", report.visualResult.deltaE)),
+                    ("Lightness Disparity (ΔL*):", String(format: "%+.1f L* (Left: %.1f vs Right: %.1f)", report.visualResult.lightnessDisparity, report.visualResult.leftFootLightness, report.visualResult.rightFootLightness)),
+                    ("Unilateral Blanching / Pallor:", report.visualResult.isClinicallyAsymmetric ? "DETECTED" : "None"),
+                    ("Trophic Risk Flags:", report.visualResult.trophicRiskFlags.isEmpty ? "No abnormal trophic signs" : report.visualResult.trophicRiskFlags.joined(separator: ", "))
+                ]
+            }
             
             for (title, val) in visMetrics {
                 let lineText = "\(title) \(val)"
                 lineText.draw(
                     in: CGRect(x: metricsX, y: metricY, width: metricsWidth, height: 16),
-                    withAttributes: [.font: UIFont.systemFont(ofSize: 9.5, weight: .medium), .foregroundColor: UIColor.label]
+                    withAttributes: [.font: language.uiFont(size: 9.5, weight: .medium), .foregroundColor: UIColor.label]
                 )
                 metricY += 18.0
             }
@@ -163,7 +213,10 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
             cursorY += 12.0
             
             // 4. Modality 2: Hemodynamic Dual-Site PPG Waveform Analysis
-            "2. Dual-Site Pulse Wave Morphology (Cardiac Baseline vs. Distal Toe)".draw(
+            let section2Title = (language == .thai)
+                ? "2. การวิเคราะห์คลื่นชีพจรสองตำแหน่ง (Cardiac Baseline vs. Distal Big Toe)"
+                : "2. Dual-Site Pulse Wave Morphology (Cardiac Baseline vs. Distal Toe)"
+            section2Title.draw(
                 in: CGRect(x: marginX, y: cursorY, width: contentWidth, height: 18),
                 withAttributes: sectionHeaderAttr
             )
@@ -174,28 +227,40 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
             let waveBoxHeight: CGFloat = 80.0
             
             // Finger waveform box
+            let fingerTitle = (language == .thai) ? "ปลายนิ้วมือ (Cardiac Baseline)" : "Fingertip (Cardiac Baseline)"
             let fingerBox = CGRect(x: marginX, y: cursorY, width: waveBoxWidth, height: waveBoxHeight)
-            drawWaveformGraph(samples: fingerWaveformSamples, in: fingerBox, title: "Fingertip (Cardiac Baseline)", strokeColor: UIColor.systemBlue)
+            drawWaveformGraph(samples: fingerWaveformSamples, in: fingerBox, title: fingerTitle, strokeColor: UIColor.systemBlue, language: language)
             
             // Toe waveform box
+            let toeTitle = (language == .thai) ? "นิ้วหัวแม่เท้า (Distal Extremity)" : "Big Toe (Distal Extremity)"
             let toeBox = CGRect(x: marginX + waveBoxWidth + 12.0, y: cursorY, width: waveBoxWidth, height: waveBoxHeight)
-            drawWaveformGraph(samples: toeWaveformSamples, in: toeBox, title: "Big Toe (Distal Extremity)", strokeColor: UIColor.systemTeal)
+            drawWaveformGraph(samples: toeWaveformSamples, in: toeBox, title: toeTitle, strokeColor: UIColor.systemTeal, language: language)
             cursorY += waveBoxHeight + 12.0
             
             // Hemodynamic metrics table
             let hemo = report.hemodynamicResult
-            let hemoMetrics = [
-                ("Systolic Rise Time (SRT):", "Finger: \(Int(hemo.fingerMorphometry.meanSystolicRiseTimeMs)) ms   |   Toe: \(Int(hemo.toeMorphometry.meanSystolicRiseTimeMs)) ms (Delay: +\(Int(hemo.srtDelayMs)) ms)"),
-                ("Toe-to-Finger Amplitude Ratio:", String(format: "%.2f (Normal > 0.50; Damped < 0.35)", hemo.amplitudeRatio)),
-                ("Dicrotic Notch Presence:", "Finger: \(Int(hemo.fingerMorphometry.dicroticNotchPrevalence * 100))%   |   Toe: \(Int(hemo.toeMorphometry.dicroticNotchPrevalence * 100))% (Loss: \(hemo.isToeDicroticNotchLost ? "YES" : "No"))"),
-                ("Signal Quality Index (SQI):", String(format: "Finger: %.0f%%   |   Toe: %.0f%%", hemo.fingerMorphometry.signalQualityIndex * 100, hemo.toeMorphometry.signalQualityIndex * 100))
-            ]
+            let hemoMetrics: [(String, String)]
+            if language == .thai {
+                hemoMetrics = [
+                    ("เวลาชีพจรขึ้น (SRT):", "นิ้วมือ: \(Int(hemo.fingerMorphometry.meanSystolicRiseTimeMs)) ms   |   นิ้วเท้า: \(Int(hemo.toeMorphometry.meanSystolicRiseTimeMs)) ms (ล่าช้า: +\(Int(hemo.srtDelayMs)) ms)"),
+                    ("ดัชนีชีพจรปลายเท้าเทียบมือ (PRT):", String(format: "%.2f (ปกติ > 0.50; ชีพจรหน่วง < 0.35)", hemo.amplitudeRatio)),
+                    ("รอยหยัก Dicrotic Notch:", "นิ้วมือ: \(Int(hemo.fingerMorphometry.dicroticNotchPrevalence * 100))%   |   นิ้วเท้า: \(Int(hemo.toeMorphometry.dicroticNotchPrevalence * 100))% (สูญหาย: \(hemo.isToeDicroticNotchLost ? "ใช่" : "ไม่"))"),
+                    ("ดัชนีคุณภาพสัญญาณ (SQI):", String(format: "นิ้วมือ: %.0f%%   |   นิ้วเท้า: %.0f%%", hemo.fingerMorphometry.signalQualityIndex * 100, hemo.toeMorphometry.signalQualityIndex * 100))
+                ]
+            } else {
+                hemoMetrics = [
+                    ("Systolic Rise Time (SRT):", "Finger: \(Int(hemo.fingerMorphometry.meanSystolicRiseTimeMs)) ms   |   Toe: \(Int(hemo.toeMorphometry.meanSystolicRiseTimeMs)) ms (Delay: +\(Int(hemo.srtDelayMs)) ms)"),
+                    ("Toe-to-Finger Amplitude Ratio:", String(format: "%.2f (Normal > 0.50; Damped < 0.35)", hemo.amplitudeRatio)),
+                    ("Dicrotic Notch Presence:", "Finger: \(Int(hemo.fingerMorphometry.dicroticNotchPrevalence * 100))%   |   Toe: \(Int(hemo.toeMorphometry.dicroticNotchPrevalence * 100))% (Loss: \(hemo.isToeDicroticNotchLost ? "YES" : "No"))"),
+                    ("Signal Quality Index (SQI):", String(format: "Finger: %.0f%%   |   Toe: %.0f%%", hemo.fingerMorphometry.signalQualityIndex * 100, hemo.toeMorphometry.signalQualityIndex * 100))
+                ]
+            }
             
             for (label, val) in hemoMetrics {
                 let line = "\(label)  \(val)"
                 line.draw(
                     in: CGRect(x: marginX, y: cursorY, width: contentWidth, height: 14),
-                    withAttributes: [.font: UIFont.systemFont(ofSize: 9.5, weight: .regular), .foregroundColor: UIColor.label]
+                    withAttributes: [.font: language.uiFont(size: 9.5, weight: .regular), .foregroundColor: UIColor.label]
                 )
                 cursorY += 15.0
             }
@@ -206,17 +271,21 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
             cursorY += 12.0
             
             // 5. Clinical Impressions & Recommended Next Steps
-            "3. Clinical Evaluation & Recommended Next Steps".draw(
+            let section3Title = (language == .thai)
+                ? "3. ผลการประเมินทางคลินิกและขั้นตอนแนะนำถัดไป"
+                : "3. Clinical Evaluation & Recommended Next Steps"
+            section3Title.draw(
                 in: CGRect(x: marginX, y: cursorY, width: contentWidth, height: 18),
                 withAttributes: sectionHeaderAttr
             )
             cursorY += 20.0
             
             for rec in report.recommendations {
-                let bullet = "• \(rec)"
+                let localizedRec = HemosightStrings.localizeRecommendation(rec, language: language)
+                let bullet = "• \(localizedRec)"
                 bullet.draw(
                     in: CGRect(x: marginX + 8, y: cursorY, width: contentWidth - 16, height: 26),
-                    withAttributes: [.font: UIFont.systemFont(ofSize: 9, weight: .medium), .foregroundColor: UIColor.darkGray]
+                    withAttributes: [.font: language.uiFont(size: 9, weight: .medium), .foregroundColor: UIColor.darkGray]
                 )
                 cursorY += 20.0
             }
@@ -225,11 +294,16 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
             let footerRect = CGRect(x: marginX, y: pageHeight - 50.0, width: contentWidth, height: 35.0)
             let disclaimerStyle = NSMutableParagraphStyle()
             disclaimerStyle.alignment = .center
-            let disclaimer = "CLINICAL DISCLAIMER: Hemosight is an investigational pre-screening tool designed for home screening. It is not an FDA-cleared diagnostic device and does not replace formal Doppler ultrasound or Ankle-Brachial Index (ABI) examination. Consult a qualified vascular specialist or physician."
+            if language == .thai {
+                disclaimerStyle.lineSpacing = 2.0
+            }
+            let disclaimer = (language == .thai)
+                ? "ข้อควรระวังทางการแพทย์: Hemosight เป็นเครื่องมือช่วยคัดกรองเบื้องต้น ไม่ใช่อุปกรณ์วินิจฉัยโรคตามการรับรองของ FDA และไม่สามารถใช้แทนการตรวจ Ankle-Brachial Index (ABI) หรืออัลตราซาวด์หลอดเลือด Doppler ได้ กรุณาปรึกษาแพทย์เฉพาะทางเพื่อรับการวินิจฉัยทางการแพทย์อย่างเป็นทางการ"
+                : "CLINICAL DISCLAIMER: Hemosight is an investigational pre-screening tool designed for home screening. It is not an FDA-cleared diagnostic device and does not replace formal Doppler ultrasound or Ankle-Brachial Index (ABI) examination. Consult a qualified vascular specialist or physician."
             disclaimer.draw(
                 in: footerRect,
                 withAttributes: [
-                    .font: UIFont.systemFont(ofSize: 7.5, weight: .regular),
+                    .font: language.uiFont(size: 7.5, weight: .regular),
                     .foregroundColor: UIColor.tertiaryLabel,
                     .paragraphStyle: disclaimerStyle
                 ]
@@ -246,7 +320,7 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
         path.stroke()
     }
     
-    private func drawWaveformGraph(samples: [Float], in rect: CGRect, title: String, strokeColor: UIColor) {
+    private func drawWaveformGraph(samples: [Float], in rect: CGRect, title: String, strokeColor: UIColor, language: AppLanguage) {
         // Draw background container
         let bgPath = UIBezierPath(roundedRect: rect, cornerRadius: 4)
         UIColor.systemGray6.setFill()
@@ -258,7 +332,7 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
         // Title label
         title.draw(
             in: CGRect(x: rect.origin.x + 6, y: rect.origin.y + 4, width: rect.width - 12, height: 12),
-            withAttributes: [.font: UIFont.systemFont(ofSize: 8, weight: .semibold), .foregroundColor: UIColor.darkGray]
+            withAttributes: [.font: language.uiFont(size: 8, weight: .semibold), .foregroundColor: UIColor.darkGray]
         )
         
         guard samples.count > 10 else { return }
@@ -301,6 +375,7 @@ public final class ReportGenerationService: ReportGenerationServiceProtocol, Sen
 public final class ReportGenerationServiceSpyingStub: ReportGenerationServiceProtocol, @unchecked Sendable {
     public private(set) var generatedReports: [ComprehensivePADReport] = []
     public private(set) var capturedFootImages: [UIImage?] = []
+    public private(set) var usedLanguages: [AppLanguage] = []
     public var dataToReturn: Data
     
     public init(dataToReturn: Data = Data([0x25, 0x50, 0x44, 0x46])) { // %PDF header
@@ -311,12 +386,13 @@ public final class ReportGenerationServiceSpyingStub: ReportGenerationServicePro
         report: ComprehensivePADReport,
         footImage: UIImage?,
         fingerWaveformSamples: [Float],
-        toeWaveformSamples: [Float]
+        toeWaveformSamples: [Float],
+        language: AppLanguage = .english
     ) -> Data {
         generatedReports.append(report)
         capturedFootImages.append(footImage)
+        usedLanguages.append(language)
         return dataToReturn
     }
 }
 #endif
-

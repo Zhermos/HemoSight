@@ -6,6 +6,7 @@ import PhotosUI
 public struct VisualPhotoScanView: View {
     @Bindable public var viewModel: ScreeningWorkflowViewModel
     @State private var selectedPhotoItem: PhotosPickerItem?
+    @Environment(\.appLanguage) private var appLanguage
     
     public init(viewModel: ScreeningWorkflowViewModel) {
         self.viewModel = viewModel
@@ -35,12 +36,18 @@ public struct VisualPhotoScanView: View {
     
     private var instructionsCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Bilateral Dorsal Foot Inspection", systemImage: "camera.viewfinder")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(.blue)
+            Label {
+                Text(HemosightStrings.visualInspectionTitle(for: appLanguage))
+                    .appFont(size: appLanguage == .thai ? 17 : 18, weight: .bold)
+            } icon: {
+                Image(systemName: "camera.viewfinder")
+                    .font(.title3)
+            }
+            .foregroundStyle(.blue)
+            .toneMarkSafePadding(.bottom, 2)
             
-            Text("Position both feet side-by-side under clear, even lighting. Our computer vision engine analyzes skin color symmetry (CIE L*a*b*) to detect unilateral blanching or ischemic pallor.")
-                .font(.body)
+            Text(HemosightStrings.visualInspectionDescription(for: appLanguage))
+                .appFont(size: appLanguage == .thai ? 14 : 15, weight: .regular)
                 .foregroundStyle(.secondary)
         }
         .padding()
@@ -63,30 +70,37 @@ public struct VisualPhotoScanView: View {
                     .scaledToFit()
                     .clipShape(.rect(cornerRadius: 12))
                     .padding(8)
-                    .accessibilityLabel("Captured foot photo")
+                    .accessibilityLabel(appLanguage == .thai ? "ภาพถ่ายหลังเท้าที่เลือก" : "Captured foot photo")
             } else {
-                VStack(spacing: 12) {
+                VStack(spacing: 10) {
                     Image(systemName: "shoe.2.fill")
-                        .font(.system(size: 64))
+                        .font(.system(size: 60))
                         .foregroundStyle(.blue.opacity(0.4))
                         .accessibilityHidden(true)
                     
-                    Text("Align Left and Right Feet Here")
-                        .font(.headline)
+                    Text(HemosightStrings.visualPlacementTitle(for: appLanguage))
+                        .appFont(size: appLanguage == .thai ? 16 : 17, weight: .bold)
                         .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                     
-                    Text("Ensure dorsal skin (top of feet) is fully uncovered")
-                        .font(.subheadline)
+                    Text(HemosightStrings.visualPlacementSubtitle(for: appLanguage))
+                        .appFont(size: appLanguage == .thai ? 13 : 14, weight: .regular)
                         .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
                 }
+                .padding(.horizontal)
             }
             
             if viewModel.isProcessing {
-                ProgressView("Analyzing bilateral chromaticity...")
-                    .padding()
-                    .background(.ultraThinMaterial)
-                    .clipShape(.rect(cornerRadius: 10))
-                    .accessibilityLabel("Analyzing bilateral chromaticity")
+                ProgressView {
+                    Text(HemosightStrings.visualAnalyzing(for: appLanguage))
+                        .appFont(size: 14, weight: .medium)
+                        .padding(.top, 4)
+                }
+                .padding(16)
+                .background(.ultraThinMaterial)
+                .clipShape(.rect(cornerRadius: 12))
+                .accessibilityLabel(HemosightStrings.visualAnalyzing(for: appLanguage))
             }
         }
         .frame(height: 280)
@@ -98,7 +112,7 @@ public struct VisualPhotoScanView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
             Text(message)
-                .font(.callout)
+                .appFont(size: 14, weight: .medium)
                 .foregroundStyle(.red)
         }
         .padding(.horizontal)
@@ -111,10 +125,11 @@ public struct VisualPhotoScanView: View {
             matching: .images,
             photoLibrary: .shared()
         ) {
-            HStack {
+            HStack(spacing: 10) {
                 Image(systemName: "photo.badge.plus")
-                Text("Select Foot Photo from Library")
-                    .font(.title3.weight(.bold))
+                    .font(.title3)
+                Text(HemosightStrings.visualPickButton(for: appLanguage))
+                    .appFont(size: appLanguage == .thai ? 17 : 18, weight: .bold)
             }
             .frame(maxWidth: .infinity)
             .frame(minHeight: 56)
@@ -124,8 +139,8 @@ public struct VisualPhotoScanView: View {
         }
         .padding(.horizontal)
         .padding(.bottom, 24)
-        .accessibilityLabel("Select Foot Photo from Library")
-        .accessibilityHint("Opens photo library to pick dorsal foot inspection image")
+        .accessibilityLabel(HemosightStrings.visualPickButton(for: appLanguage))
+        .accessibilityHint(HemosightStrings.visualPickButtonHint(for: appLanguage))
         .onChange(of: selectedPhotoItem) { _, newItem in
             guard let newItem else { return }
             Task {
@@ -133,7 +148,7 @@ public struct VisualPhotoScanView: View {
                    let image = UIImage(data: data) {
                     await viewModel.processFootPhoto(image)
                 } else {
-                    viewModel.errorMessage = "Failed to load selected photo."
+                    viewModel.errorMessage = HemosightStrings.visualLoadError(for: appLanguage)
                 }
             }
         }
@@ -142,19 +157,17 @@ public struct VisualPhotoScanView: View {
 
 // MARK: - Previews
 
-#Preview("Step 1 - Initial State") {
-    VisualPhotoScanView(viewModel: .preview(step: .step1VisualPhoto))
+#Preview("Thai Step 1 - Initial State") {
+    VisualPhotoScanView(viewModel: .preview(step: .step1VisualPhoto, language: .thai))
+        .environment(\.appLanguage, .thai)
 }
 
-#Preview("Step 1 - Processing State") {
-    VisualPhotoScanView(viewModel: .preview(step: .step1VisualPhoto, isProcessing: true))
+#Preview("Thai Step 1 - Processing State") {
+    VisualPhotoScanView(viewModel: .preview(step: .step1VisualPhoto, isProcessing: true, language: .thai))
+        .environment(\.appLanguage, .thai)
 }
 
-#Preview("Step 1 - Error State") {
-    VisualPhotoScanView(
-        viewModel: .preview(
-            step: .step1VisualPhoto,
-            errorMessage: "Unable to segment left and right foot regions. Please ensure even lighting."
-        )
-    )
+#Preview("English Step 1 - Initial State") {
+    VisualPhotoScanView(viewModel: .preview(step: .step1VisualPhoto, language: .english))
+        .environment(\.appLanguage, .english)
 }

@@ -19,12 +19,31 @@ public enum ScreeningStep: Int, CaseIterable, Identifiable {
         case .step4Dashboard: return "Step 4: Clinical Risk Assessment"
         }
     }
+    
+    public func localizedShortName(for language: AppLanguage) -> String {
+        HemosightStrings.stepperShortName(for: self, language: language)
+    }
+    
+    public func localizedFullTitle(for language: AppLanguage) -> String {
+        HemosightStrings.stepperFullTitle(for: self, language: language)
+    }
 }
+
 
 /// Main application view model managing screening states, hardware streaming, and clinical scoring.
 @Observable
 @MainActor
 public final class ScreeningWorkflowViewModel {
+    
+    // Language State
+    public var language: AppLanguage = .english {
+        didSet {
+            UserDefaults.standard.set(language.rawValue, forKey: "app_language")
+            if oldValue != language && finalReport != nil {
+                regeneratePDFForCurrentLanguage()
+            }
+        }
+    }
     
     // Workflow State
     public var currentStep: ScreeningStep = .step1VisualPhoto
@@ -84,6 +103,10 @@ public final class ScreeningWorkflowViewModel {
         self.dspEngine = dspEngine
         self.classifier = classifier
         self.reportService = reportService
+        if let storedLang = UserDefaults.standard.string(forKey: "app_language"),
+           let appLang = AppLanguage(rawValue: storedLang) {
+            self.language = appLang
+        }
         bindCameraStreams()
     }
     
@@ -276,12 +299,25 @@ public final class ScreeningWorkflowViewModel {
         )
         self.finalReport = report
         
-        // ReportGenerationService is @MainActor, invoke directly
+        // ReportGenerationService is @MainActor, invoke directly with active language
         let pdfData = reportService.generatePDFReport(
             report: report,
             footImage: capturedFootImage,
             fingerWaveformSamples: fingerFilteredSamples,
-            toeWaveformSamples: toeFilteredSamples
+            toeWaveformSamples: toeFilteredSamples,
+            language: self.language
+        )
+        self.generatedPDFData = pdfData
+    }
+    
+    public func regeneratePDFForCurrentLanguage() {
+        guard let report = finalReport else { return }
+        let pdfData = reportService.generatePDFReport(
+            report: report,
+            footImage: capturedFootImage,
+            fingerWaveformSamples: fingerFilteredSamples,
+            toeWaveformSamples: toeFilteredSamples,
+            language: self.language
         )
         self.generatedPDFData = pdfData
     }
@@ -320,9 +356,11 @@ extension ScreeningWorkflowViewModel {
         report: ComprehensivePADReport? = nil,
         isRecordingPPG: Bool = false,
         contactState: CameraContactState = .optimal,
-        errorMessage: String? = nil
+        errorMessage: String? = nil,
+        language: AppLanguage = .english
     ) -> ScreeningWorkflowViewModel {
         let vm = ScreeningWorkflowViewModel()
+        vm.language = language
         vm.currentStep = step
         vm.isProcessing = isProcessing
         vm.finalReport = report
