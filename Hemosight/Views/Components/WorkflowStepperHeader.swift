@@ -71,26 +71,26 @@ public struct WorkflowStepperHeader: View {
 
 // MARK: - Previews
 
-#Preview("Thai Stepper - Step 1") {
-    WorkflowStepperHeader(currentStep: .step1VisualPhoto)
+#Preview("Thai Stepper - Step 1 (Finger PPG)") {
+    WorkflowStepperHeader(currentStep: .step1FingerPPG)
         .environment(\.appLanguage, .thai)
         .padding()
 }
 
-#Preview("Thai Stepper - Step 3") {
-    WorkflowStepperHeader(currentStep: .step3ToePPG)
+#Preview("Thai Stepper - Step 2 (Toe PPG)") {
+    WorkflowStepperHeader(currentStep: .step2ToePPG)
         .environment(\.appLanguage, .thai)
         .padding()
 }
 
-#Preview("English Stepper - Step 2") {
-    WorkflowStepperHeader(currentStep: .step2FingerPPG)
+#Preview("English Stepper - Step 2 (Toe PPG)") {
+    WorkflowStepperHeader(currentStep: .step2ToePPG)
         .environment(\.appLanguage, .english)
         .padding()
 }
 
-#Preview("English Stepper - Step 4") {
-    WorkflowStepperHeader(currentStep: .step4Dashboard)
+#Preview("English Stepper - Step 3 (Results Dashboard)") {
+    WorkflowStepperHeader(currentStep: .step3Dashboard)
         .environment(\.appLanguage, .english)
         .padding()
 }

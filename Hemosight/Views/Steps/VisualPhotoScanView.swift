@@ -196,17 +196,17 @@ public struct VisualPhotoScanView: View {
 
 // MARK: - Previews
 
-#Preview("Thai Step 1 - Initial State") {
-    VisualPhotoScanView(viewModel: .preview(step: .step1VisualPhoto, language: .thai))
+#Preview("Thai Visual Foot Scan - Initial State") {
+    VisualPhotoScanView(viewModel: .preview(step: .step1FingerPPG, language: .thai))
         .environment(\.appLanguage, .thai)
 }
 
-#Preview("Thai Step 1 - Processing State") {
-    VisualPhotoScanView(viewModel: .preview(step: .step1VisualPhoto, isProcessing: true, language: .thai))
+#Preview("Thai Visual Foot Scan - Processing State") {
+    VisualPhotoScanView(viewModel: .preview(step: .step1FingerPPG, isProcessing: true, language: .thai))
         .environment(\.appLanguage, .thai)
 }
 
-#Preview("English Step 1 - Initial State") {
-    VisualPhotoScanView(viewModel: .preview(step: .step1VisualPhoto, language: .english))
+#Preview("English Visual Foot Scan - Initial State") {
+    VisualPhotoScanView(viewModel: .preview(step: .step1FingerPPG, language: .english))
         .environment(\.appLanguage, .english)
 }

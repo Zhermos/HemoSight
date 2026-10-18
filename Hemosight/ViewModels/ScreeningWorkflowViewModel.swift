@@ -299,9 +299,9 @@ public final class ScreeningWorkflowViewModel {
             let result = try await visualScanner.analyzeBilateralDorsalFeet(image: image)
             self.visualResult = result
             self.isProcessing = false
-            self.currentStep = .step2FingerPPG
+            self.currentStep = .step1FingerPPG
             triggerHapticFeedback(.success)
-            checkAndTriggerTutorial(for: .step2FingerPPG)
+            checkAndTriggerTutorial(for: .step1FingerPPG)
         } catch {
             self.isProcessing = false
             self.errorMessage = error.localizedDescription

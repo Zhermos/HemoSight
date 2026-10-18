@@ -262,27 +262,27 @@ public struct PPGScanView: View {
 
 // MARK: - Previews
 
-#Preview("Thai Step 2 - Finger PPG Idle") {
+#Preview("Thai Step 1 - Finger PPG Idle") {
     PPGScanView(
-        viewModel: .preview(step: .step2FingerPPG, language: .thai),
+        viewModel: .preview(step: .step1FingerPPG, language: .thai),
         site: .finger,
         instruction: "Place your index fingertip gently over the rear camera lens and flash."
     )
     .environment(\.appLanguage, .thai)
 }
 
-#Preview("Thai Step 2 - Finger PPG Recording") {
+#Preview("Thai Step 1 - Finger PPG Recording") {
     PPGScanView(
-        viewModel: .preview(step: .step2FingerPPG, isRecordingPPG: true, contactState: .optimal, language: .thai, liveBPM: 74),
+        viewModel: .preview(step: .step1FingerPPG, isRecordingPPG: true, contactState: .optimal, language: .thai, liveBPM: 74),
         site: .finger,
         instruction: "Place your index fingertip gently over the rear camera lens and flash."
     )
     .environment(\.appLanguage, .thai)
 }
 
-#Preview("English Step 3 - Toe PPG Idle") {
+#Preview("English Step 2 - Toe PPG Idle") {
     PPGScanView(
-        viewModel: .preview(step: .step3ToePPG, language: .english),
+        viewModel: .preview(step: .step2ToePPG, language: .english),
         site: .toe,
         instruction: "Rest your big toe gently over the rear camera lens and flash while seated comfortably."
     )
