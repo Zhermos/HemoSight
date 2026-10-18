@@ -94,17 +94,17 @@ public struct HemosightRootView: View {
                     }
                 }
                 
-                // Trailing: Help Tutorial Button (?) & Reset Workflow Button
+                // Trailing: Help Button ("?") and Compact Reset Workflow Button ("รีเซ็ต" / "Reset")
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 12) {
                         Button {
-                            viewModel.isShowingTutorial = true
+                            viewModel.showTutorialForCurrentStep()
                         } label: {
                             Image(systemName: "questionmark.circle")
-                                .font(.system(size: 19, weight: .semibold))
+                                .font(.system(size: 18, weight: .semibold))
                                 .foregroundStyle(.blue)
                         }
-                        .accessibilityLabel(HemosightStrings.helpButtonAccessibilityLabel(for: viewModel.language))
+                        .accessibilityLabel(HemosightStrings.helpButtonLabel(for: viewModel.language))
                         
                         Button(HemosightStrings.reset(for: viewModel.language)) {
                             viewModel.restartWorkflow()
@@ -116,13 +116,15 @@ public struct HemosightRootView: View {
                 }
             }
         }
-        .sheet(isPresented: $viewModel.isShowingTutorial) {
-            TutorialSheetView(isPresented: $viewModel.isShowingTutorial)
-                .environment(\.appLanguage, viewModel.language)
+        .fullScreenCover(item: Binding<ScreeningStep?>(
+            get: { viewModel.activeTutorialStep },
+            set: { viewModel.activeTutorialStep = $0 }
+        )) { step in
+            StepTutorialView(step: step, viewModel: viewModel)
         }
         .onAppear {
-            if !viewModel.hideTutorialOnLaunch {
-                viewModel.isShowingTutorial = true
+            if viewModel.activeTutorialStep == nil && !viewModel.isTutorialDismissed(for: viewModel.currentStep) {
+                viewModel.showTutorial(for: viewModel.currentStep)
             }
         }
         .environment(\.appLanguage, viewModel.language)

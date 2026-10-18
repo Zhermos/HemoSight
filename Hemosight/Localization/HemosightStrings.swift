@@ -438,135 +438,155 @@ public enum HemosightStrings {
         return text
     }
     
-    // MARK: - Tutorial Onboarding
+    // MARK: - Step Tutorials
     
-    public static func tutorialTitle(for language: AppLanguage) -> String {
+    public static func tutorialBadge(for step: ScreeningStep, language: AppLanguage) -> String {
         switch language {
-        case .english: return "How to Use Hemosight"
-        case .thai: return "วิธีใช้งาน Hemosight"
+        case .english: return "Step \(step.rawValue) Tutorial"
+        case .thai: return "คำแนะนำขั้นตอนที่ \(step.rawValue)"
         }
     }
     
-    public static func helpButtonAccessibilityLabel(for language: AppLanguage) -> String {
+    public static func tutorialTitle(for step: ScreeningStep, language: AppLanguage) -> String {
         switch language {
-        case .english: return "Help and Tutorial Guide"
-        case .thai: return "คำแนะนำการใช้งาน"
+        case .english:
+            switch step {
+            case .step1VisualPhoto: return "How to Photograph Feet"
+            case .step2FingerPPG: return "How to Measure Finger Pulse"
+            case .step3ToePPG: return "How to Measure Big Toe Pulse"
+            case .step4Dashboard: return "Results Overview"
+            }
+        case .thai:
+            switch step {
+            case .step1VisualPhoto: return "วิธีถ่ายภาพหลังเท้าทั้งสองข้าง"
+            case .step2FingerPPG: return "วิธีตรวจชีพจรปลายนิ้วมือ"
+            case .step3ToePPG: return "วิธีตรวจชีพจรนิ้วหัวแม่เท้า"
+            case .step4Dashboard: return "สรุปผลการประเมิน"
+            }
         }
     }
     
-    public static func tutorialCloseButton(for language: AppLanguage) -> String {
+    public static func tutorialSubtitle(for step: ScreeningStep, language: AppLanguage) -> String {
         switch language {
-        case .english: return "Close"
-        case .thai: return "ปิด"
+        case .english:
+            switch step {
+            case .step1VisualPhoto:
+                return "Place both bare feet together on the floor and align them inside the green box using both hands."
+            case .step2FingerPPG:
+                return "Gently cover the rear camera lens and flash with your index fingertip until a warm red light appears."
+            case .step3ToePPG:
+                return "Rest your foot flat and gently place your big toe over the rear camera lens and flash for 30 seconds."
+            case .step4Dashboard:
+                return "Review your vascular stiffness, perfusion index, and clinical recommendations."
+            }
+        case .thai:
+            switch step {
+            case .step1VisualPhoto:
+                return "จัดวางเท้าเปล่าทั้งสองข้างชิดกันบนพื้น ถือโทรศัพท์ด้วยสองมือและเล็งให้เท้าอยู่ในกรอบสีเขียว"
+            case .step2FingerPPG:
+                return "วางปลายนิ้วชี้แตะเบาๆ ปิดเลนส์กล้องหลังและไฟแฟลชให้สนิท จนแสงส่องผ่านเนื้อนิ้วเป็นสีแดงสว่าง"
+            case .step3ToePPG:
+                return "นั่งสบายๆ วางเท้าราบบนแท่นหรือเก้าอี้เตี้ย แล้วแนบปลายนิ้วหัวแม่เท้าปิดเลนส์กล้องและไฟแฟลชเบาๆ 30 วินาที"
+            case .step4Dashboard:
+                return "ดูผลการวิเคราะห์ความยืดหยุ่นหลอดเลือด ดัชนีการไหลเวียนเลือด และคำแนะนำทางการแพทย์"
+            }
         }
     }
     
-    public static func nextButton(for language: AppLanguage) -> String {
+    public static func tutorialPoints(for step: ScreeningStep, language: AppLanguage) -> [(icon: String, text: String)] {
         switch language {
-        case .english: return "Next"
-        case .thai: return "ถัดไป"
+        case .english:
+            switch step {
+            case .step1VisualPhoto:
+                return [
+                    ("shoe.circle", "Remove socks and shoes completely to expose both feet."),
+                    ("sun.max.circle", "Ensure bright, even room lighting without harsh shadows."),
+                    ("viewfinder.circle", "Hold phone steady and press capture once feet are framed in green.")
+                ]
+            case .step2FingerPPG:
+                return [
+                    ("hand.point.up.left", "Rest fingertip gently without pressing too hard."),
+                    ("flashlight.on.circle", "Completely cover both camera lens and LED flash."),
+                    ("timer.circle", "Keep your hand still and relax for 30 seconds.")
+                ]
+            case .step3ToePPG:
+                return [
+                    ("figure.seated.side", "Sit comfortably with your foot resting steadily on a low surface."),
+                    ("camera.circle", "Gently press the fleshy pad of your big toe against the rear camera."),
+                    ("waveform.path.ecg", "Hold completely still while the pulse waveform records for 30s.")
+                ]
+            case .step4Dashboard:
+                return [
+                    ("doc.text.magnifyingglass", "Review automated clinical findings and risk tier."),
+                    ("square.and.arrow.up", "Export or share the comprehensive PDF report with your doctor.")
+                ]
+            }
+        case .thai:
+            switch step {
+            case .step1VisualPhoto:
+                return [
+                    ("shoe.circle", "ถอดถุงเท้าและรองเท้าออกให้เห็นหลังเท้าทั้งสองข้างชัดเจน"),
+                    ("sun.max.circle", "ถ่ายในห้องที่มีแสงสว่างเพียงพอและสม่ำเสมอ ไม่มีเงาบดบัง"),
+                    ("viewfinder.circle", "ถือโทรศัพท์ให้นิ่ง แล้วกดปุ่มถ่ายภาพเมื่อเท้าอยู่ในกรอบสีเขียว")
+                ]
+            case .step2FingerPPG:
+                return [
+                    ("hand.point.up.left", "แตะเบาๆ ไม่ต้องกดแรง เพื่อให้หลอดเลือดฝอยไหลเวียนได้ตามปกติ"),
+                    ("flashlight.on.circle", "ปิดเลนส์กล้องและไฟแฟลชให้สนิท จนแสงแฟลชส่องผ่านเนื้อนิ้วเป็นสีแดง"),
+                    ("timer.circle", "อยู่นิ่งๆ ผ่อนคลายกล้ามเนื้อเป็นเวลา 30 วินาทีจนกว่าจะเสร็จสิ้น")
+                ]
+            case .step3ToePPG:
+                return [
+                    ("figure.seated.side", "นั่งในท่าที่สบาย วางเท้าราบมั่นคงบนเก้าอี้เตี้ยหรือแท่นรอง ไม่เกร็งขา"),
+                    ("camera.circle", "แนบเนื้อใต้ปลายนิ้วหัวแม่เท้าแตะปิดเลนส์กล้องหลังและไฟแฟลชเบาๆ"),
+                    ("waveform.path.ecg", "อยู่นิ่งๆ และไม่ขยับเท้าตลอดการตรวจ 30 วินาที")
+                ]
+            case .step4Dashboard:
+                return [
+                    ("doc.text.magnifyingglass", "ตรวจสอบผลการประเมินระดับความเสี่ยงหลอดเลือด"),
+                    ("square.and.arrow.up", "แชร์หรือบันทึกรายงาน PDF เพื่อนำไปปรึกษาแพทย์เฉพาะทาง")
+                ]
+            }
         }
     }
     
-    public static func startScreeningButton(for language: AppLanguage) -> String {
+    public static func tutorialActionButton(for step: ScreeningStep, language: AppLanguage) -> String {
         switch language {
-        case .english: return "Start Screening"
-        case .thai: return "เริ่มต้นการตรวจ"
+        case .english:
+            switch step {
+            case .step1VisualPhoto: return "Understood, Start Foot Photo"
+            case .step2FingerPPG: return "Understood, Start Finger Scan"
+            case .step3ToePPG: return "Understood, Start Toe Scan"
+            case .step4Dashboard: return "View Results"
+            }
+        case .thai:
+            switch step {
+            case .step1VisualPhoto: return "เข้าใจแล้ว เริ่มถ่ายภาพหลังเท้า"
+            case .step2FingerPPG: return "เข้าใจแล้ว เริ่มตรวจชีพจรนิ้วมือ"
+            case .step3ToePPG: return "เข้าใจแล้ว เริ่มตรวจชีพจรนิ้วเท้า"
+            case .step4Dashboard: return "ดูผลสรุปการประเมิน"
+            }
         }
     }
     
-    public static func dontShowAgainCheckbox(for language: AppLanguage) -> String {
+    public static func dontShowAgain(for language: AppLanguage) -> String {
         switch language {
-        case .english: return "Don't show this tutorial again"
+        case .english: return "Don't show this guide again"
         case .thai: return "ไม่ต้องแสดงคำแนะนำนี้อีก"
         }
     }
     
-    // Slide 1
-    public static func tutorialStep1Title(for language: AppLanguage) -> String {
+    public static func helpHintNotice(for language: AppLanguage) -> String {
         switch language {
-        case .english: return "Bilateral Foot Photo Inspection"
-        case .thai: return "การตรวจภาพถ่ายหลังเท้าทั้งสองข้าง"
+        case .english: return "Tip: You can re-open this guide anytime by tapping ? at the top right"
+        case .thai: return "ข้อแนะนำ: คุณสามารถกดปุ่ม ? ด้านบนขวาเพื่อเปิดดูคำแนะนำนี้ได้เสมอ"
         }
     }
     
-    public static func tutorialStep1Subtitle(for language: AppLanguage) -> String {
+    public static func helpButtonLabel(for language: AppLanguage) -> String {
         switch language {
-        case .english: return "Step 1: Visual Skin Color Analysis"
-        case .thai: return "ขั้นตอนที่ 1: ถ่ายภาพหลังเท้า"
-        }
-    }
-    
-    public static func tutorialStep1Rule(for language: AppLanguage) -> String {
-        switch language {
-        case .english: return "Place both bare feet parallel on the ground under clear, even lighting. Do not wear socks, and ensure both feet fit within the guide frame."
-        case .thai: return "วางเท้าเปล่าทั้งสองข้างคู่กันบนพื้นในบริเวณที่มีแสงสว่างชัดเจน ไม่สวมถุงเท้า โดยให้หลังเท้าทั้งสองข้างอยู่ในกรอบภาพ"
-        }
-    }
-    
-    // Slide 2
-    public static func tutorialStep2Title(for language: AppLanguage) -> String {
-        switch language {
-        case .english: return "Fingertip Baseline Pulse"
-        case .thai: return "การตรวจชีพจรปลายนิ้วมือ"
-        }
-    }
-    
-    public static func tutorialStep2Subtitle(for language: AppLanguage) -> String {
-        switch language {
-        case .english: return "Step 2: Cardiac Reference Signal (PPG)"
-        case .thai: return "ขั้นตอนที่ 2: ชีพจรนิ้วมือ (ค่าอ้างอิง)"
-        }
-    }
-    
-    public static func tutorialStep2Rule(for language: AppLanguage) -> String {
-        switch language {
-        case .english: return "Cover both the rear camera lens and LED flash gently with your index fingertip. Do not press too hard, and hold steady for 30 seconds."
-        case .thai: return "วางเนื้อปลายนิ้วชี้ให้ปิดเลนส์กล้องหลังมิดชิด ให้ขอบนิ้วสัมผัสแสงไฟแฟลช แตะเบาๆ ไม่กดแน่น อยู่นิ่งๆ 30 วินาที"
-        }
-    }
-    
-    // Slide 3
-    public static func tutorialStep3Title(for language: AppLanguage) -> String {
-        switch language {
-        case .english: return "Big Toe Distal Pulse"
-        case .thai: return "การตรวจชีพจรนิ้วหัวแม่เท้า"
-        }
-    }
-    
-    public static func tutorialStep3Subtitle(for language: AppLanguage) -> String {
-        switch language {
-        case .english: return "Step 3: Lower-Limb Perfusion Signal (PPG)"
-        case .thai: return "ขั้นตอนที่ 3: ชีพจรนิ้วเท้า (หลอดเลือดส่วนปลาย)"
-        }
-    }
-    
-    public static func tutorialStep3Rule(for language: AppLanguage) -> String {
-        switch language {
-        case .english: return "Sit comfortably on a chair. Gently rest your big toe covering the rear camera lens and flash. Keep still for 30 seconds."
-        case .thai: return "นั่งบนเก้าอี้ในท่าที่สบาย วางนิ้วหัวแม่เท้าปิดเลนส์กล้องหลังและแฟลช นิ่งไว้ 30 วินาที เพื่อวัดคลื่นชีพจรส่วนปลาย"
-        }
-    }
-    
-    // Slide 4
-    public static func tutorialStep4Title(for language: AppLanguage) -> String {
-        switch language {
-        case .english: return "Clinical Report & Doctor Referral"
-        case .thai: return "การอ่านผลและรับรายงาน PDF"
-        }
-    }
-    
-    public static func tutorialStep4Subtitle(for language: AppLanguage) -> String {
-        switch language {
-        case .english: return "Step 4: Clinical Risk Assessment"
-        case .thai: return "ขั้นตอนที่ 4: สรุปผลการประเมิน"
-        }
-    }
-    
-    public static func tutorialStep4Rule(for language: AppLanguage) -> String {
-        switch language {
-        case .english: return "The AI evaluates 3 vascular risk tiers (Low, Borderline, High) and generates a 1-page clinical PDF report ready to share with your doctor."
-        case .thai: return "ระบบ AI จะประเมินความเสี่ยง 3 ระดับ (ต่ำ, ปานกลาง, สูง) พร้อมสร้างเอกสารสรุปทางการแพทย์ 1 หน้าสำหรับนำไปปรึกษาแพทย์"
+        case .english: return "Help & Tutorial"
+        case .thai: return "คำแนะนำวิธีใช้งาน"
         }
     }
 }
