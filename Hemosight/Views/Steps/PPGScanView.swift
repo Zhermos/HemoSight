@@ -32,6 +32,14 @@ public struct PPGScanView: View {
             // Countdown Timer Display
             countdownTimerSection
             
+            if let error = viewModel.errorMessage {
+                Text(error)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+            
             Spacer()
             
             // Start / Stop Controls (> 56pt height for accessibility)

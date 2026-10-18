@@ -57,6 +57,9 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
     
     private var isConfigured = false
     private let scanStartTimeLock = OSAllocatedUnfairLock<TimeInterval?>(initialState: nil)
+    #if targetEnvironment(simulator)
+    private var simulatorTimerTask: Task<Void, Never>?
+    #endif
     
     // Real-time publishers
     public let sampleSubject = PassthroughSubject<PPGDataPoint, Never>()
@@ -71,6 +74,19 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
     
     /// Configures the AVCaptureSession with 60 FPS, locked exposure/focus/WB, and torch enabled.
     public func startCapture() async throws {
+        #if !targetEnvironment(simulator)
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        if status == .notDetermined {
+            let granted = await AVCaptureDevice.requestAccess(for: .video)
+            guard granted else { throw CameraPPGError.configurationFailed("Camera access denied.") }
+        } else if status == .denied || status == .restricted {
+            throw CameraPPGError.configurationFailed("Camera permission is denied or restricted in Settings.")
+        }
+        #endif
+        
+        #if targetEnvironment(simulator)
+        startSimulatorStream()
+        #else
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             sessionQueue.async { [weak self] in
                 guard let self = self else {
@@ -84,15 +100,24 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
                     }
                     self.scanStartTimeLock.withLock { $0 = ProcessInfo.processInfo.systemUptime }
                     self.captureSession.startRunning()
+                    self.turnTorchOn(level: 0.8)
                     continuation.resume()
                 } catch {
                     continuation.resume(throwing: error)
                 }
             }
         }
+        #endif
     }
     
     public func stopCapture() {
+        #if targetEnvironment(simulator)
+        simulatorTimerTask?.cancel()
+        simulatorTimerTask = nil
+        scanStartTimeLock.withLock { $0 = nil }
+        contactStateSubject.send(.notCovered)
+        signalQualitySubject.send(0.0)
+        #else
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
             if self.captureSession.isRunning {
@@ -101,7 +126,46 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
             self.turnTorchOff()
             self.scanStartTimeLock.withLock { $0 = nil }
         }
+        #endif
     }
+    
+    #if targetEnvironment(simulator)
+    private func startSimulatorStream() {
+        simulatorTimerTask?.cancel()
+        let startTime = ProcessInfo.processInfo.systemUptime
+        scanStartTimeLock.withLock { $0 = startTime }
+        
+        contactStateSubject.send(.optimal)
+        signalQualitySubject.send(0.95)
+        
+        simulatorTimerTask = Task { [weak self] in
+            var sampleIndex: UInt64 = 0
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 16_666_667) // ~60 FPS (1/60s)
+                guard let self = self, !Task.isCancelled else { break }
+                
+                let current = ProcessInfo.processInfo.systemUptime
+                let timestamp = max(0.0, current - startTime)
+                
+                // Synthesize 1.1 Hz pulsatile PPG signal with systolic peak and dicrotic notch
+                let phase = (Double(sampleIndex % 55) / 55.0) * 2.0 * Double.pi
+                let cardiacWave = sin(phase) + 0.35 * sin(2.0 * phase)
+                let greenValue = Float(140.0 + (cardiacWave * 25.0))
+                let redValue: Float = 220.0
+                
+                let point = PPGDataPoint(
+                    timestamp: timestamp,
+                    filteredGreen: greenValue,
+                    rawGreen: greenValue,
+                    rawRed: redValue
+                )
+                
+                self.sampleSubject.send(point)
+                sampleIndex += 1
+            }
+        }
+    }
+    #endif
     
     private func configureSession() throws {
         captureSession.beginConfiguration()
@@ -149,11 +213,6 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
             camera.whiteBalanceMode = .locked
         }
         
-        // Enable Torch at constant level (prevents illumination fluctuation)
-        if camera.hasTorch && camera.isTorchModeSupported(.on) {
-            try camera.setTorchModeOn(level: 0.8) // 80% brightness protects skin from overheating during 30s scans
-        }
-        
         // Configure Output
         videoOutput.alwaysDiscardsLateVideoFrames = true
         videoOutput.videoSettings = [
@@ -170,6 +229,19 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
         captureSession.addOutput(videoOutput)
         
         captureSession.commitConfiguration()
+    }
+    
+    private func turnTorchOn(level: Float = 0.8) {
+        guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+              camera.hasTorch,
+              camera.isTorchModeSupported(.on) else { return }
+        do {
+            try camera.lockForConfiguration()
+            defer { camera.unlockForConfiguration() }
+            try camera.setTorchModeOn(level: level)
+        } catch {
+            print("Failed to turn torch on: \(error)")
+        }
     }
     
     private func turnTorchOff() {
