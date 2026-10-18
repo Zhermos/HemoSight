@@ -47,14 +47,14 @@ public final class ScreeningWorkflowViewModel {
     
     // Real-time live waveforms for Swift Charts (rolling buffer)
     public var liveWaveformPoints: [PPGDataPoint] = []
-    public var fingerRawSamples: [Float] = []
-    public var fingerFilteredSamples: [Float] = []
-    public var fingerSQISamples: [Double] = []
+    @ObservationIgnored public var fingerRawSamples: [Float] = []
+    @ObservationIgnored public var fingerFilteredSamples: [Float] = []
+    @ObservationIgnored public var fingerSQISamples: [Double] = []
     public var fingerMorphometry: WaveformMorphometry?
     
-    public var toeRawSamples: [Float] = []
-    public var toeFilteredSamples: [Float] = []
-    public var toeSQISamples: [Double] = []
+    @ObservationIgnored public var toeRawSamples: [Float] = []
+    @ObservationIgnored public var toeFilteredSamples: [Float] = []
+    @ObservationIgnored public var toeSQISamples: [Double] = []
     public var toeMorphometry: WaveformMorphometry?
     
     // Step 4: Final Assessment
@@ -70,7 +70,7 @@ public final class ScreeningWorkflowViewModel {
     
     private var cancellables = Set<AnyCancellable>()
     private var timerTask: Task<Void, Never>?
-    private var sampleCounter: UInt64 = 0
+    @ObservationIgnored private var sampleCounter: UInt64 = 0
     
     public init(
         visualScanner: any BilateralFootScannerServiceProtocol,
@@ -107,6 +107,7 @@ public final class ScreeningWorkflowViewModel {
     
     private func bindCameraStreams() {
         cameraPPG.contactStateSubject
+            .removeDuplicates()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
                 self?.currentContactState = state
@@ -114,7 +115,7 @@ public final class ScreeningWorkflowViewModel {
             .store(in: &cancellables)
             
         cameraPPG.signalQualitySubject
-            .receive(on: DispatchQueue.main)
+            .throttle(for: .milliseconds(250), scheduler: DispatchQueue.main, latest: true)
             .sink { [weak self] sqi in
                 guard let self = self else { return }
                 self.currentSQI = sqi
@@ -133,18 +134,18 @@ public final class ScreeningWorkflowViewModel {
             .sink { [weak self] point in
                 guard let self = self, self.isRecordingPPG else { return }
                 
-                // Collect raw green values for processing (all 60 FPS samples)
+                // Store raw sample in clinical buffer (full 60 FPS)
                 if self.currentStep == .step2FingerPPG {
                     self.fingerRawSamples.append(point.rawGreen)
                 } else if self.currentStep == .step3ToePPG {
                     self.toeRawSamples.append(point.rawGreen)
                 }
                 
-                // Throttle chart updates to every 3rd sample (~20 FPS) to prevent Main RunLoop starvation
+                // Throttle chart rendering to ~7-8 FPS (every 8th sample) with an 80-point rolling window
                 self.sampleCounter += 1
-                if self.sampleCounter % 3 == 0 {
+                if self.sampleCounter % 8 == 0 {
                     self.liveWaveformPoints.append(point)
-                    if self.liveWaveformPoints.count > 240 {
+                    if self.liveWaveformPoints.count > 80 {
                         self.liveWaveformPoints.removeFirst()
                     }
                 }
@@ -189,28 +190,34 @@ public final class ScreeningWorkflowViewModel {
             toeSQISamples.removeAll()
         }
         
-        startScanTimer() // Start countdown immediately
+        startScanTimer() // Start countdown immediately on MainActor
         
-        do {
-            try await cameraPPG.startCapture()
-        } catch {
-            stopPPGScanEarly()
-            errorMessage = error.localizedDescription
-            triggerHapticFeedback(.error)
+        // Launch camera hardware initialization in an independent Task so UI timer never freezes
+        Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                try await self.cameraPPG.startCapture()
+            } catch {
+                await MainActor.run {
+                    self.stopPPGScanEarly()
+                    self.errorMessage = error.localizedDescription
+                    self.triggerHapticFeedback(.error)
+                }
+            }
         }
     }
     
     private func startScanTimer() {
         timerTask?.cancel()
-        timerTask = Task { @MainActor in
-            while scanSecondsRemaining > 0 && isRecordingPPG {
+        timerTask = Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            while self.scanSecondsRemaining > 0 && self.isRecordingPPG {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
-                if !Task.isCancelled {
-                    scanSecondsRemaining -= 1
-                }
+                guard !Task.isCancelled, self.isRecordingPPG else { break }
+                self.scanSecondsRemaining -= 1
             }
-            if isRecordingPPG {
-                await finishCurrentPPGScan()
+            if self.isRecordingPPG && self.scanSecondsRemaining == 0 {
+                await self.finishCurrentPPGScan()
             }
         }
     }

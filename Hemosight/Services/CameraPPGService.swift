@@ -56,7 +56,9 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
     private let sessionQueue = DispatchQueue(label: "com.hemosight.camera.sessionQueue", qos: .userInitiated)
     
     private var isConfigured = false
+    private var cameraDevice: AVCaptureDevice?
     private let scanStartTimeLock = OSAllocatedUnfairLock<TimeInterval?>(initialState: nil)
+    private let torchActivatedLock = OSAllocatedUnfairLock<Bool>(initialState: false)
     #if targetEnvironment(simulator)
     private var simulatorTimerTask: Task<Void, Never>?
     #endif
@@ -99,8 +101,12 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
                         self.isConfigured = true
                     }
                     self.scanStartTimeLock.withLock { $0 = ProcessInfo.processInfo.systemUptime }
+                    self.torchActivatedLock.withLock { $0 = false }
                     self.captureSession.startRunning()
+                    
+                    // Trigger immediate torch activation attempt
                     self.turnTorchOn()
+                    
                     continuation.resume()
                 } catch {
                     continuation.resume(throwing: error)
@@ -120,10 +126,10 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
         #else
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
+            self.turnTorchOff()
             if self.captureSession.isRunning {
                 self.captureSession.stopRunning()
             }
-            self.turnTorchOff()
             self.scanStartTimeLock.withLock { $0 = nil }
         }
         #endif
@@ -175,6 +181,7 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
             captureSession.commitConfiguration()
             throw CameraPPGError.cameraUnavailable
         }
+        self.cameraDevice = camera
         
         let videoInput = try AVCaptureDeviceInput(device: camera)
         guard captureSession.canAddInput(videoInput) else {
@@ -202,20 +209,24 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
     }
     
     private func turnTorchOn() {
-        guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+        guard let camera = cameraDevice,
               camera.hasTorch,
-              camera.isTorchModeSupported(.on) else { return }
+              camera.isTorchAvailable else { return }
         do {
             try camera.lockForConfiguration()
             defer { camera.unlockForConfiguration() }
-            camera.torchMode = .on
+            if camera.isTorchModeSupported(.on) {
+                try camera.setTorchModeOn(level: AVCaptureDevice.maxAvailableTorchLevel)
+                torchActivatedLock.withLock { $0 = true }
+            }
         } catch {
             print("Failed to turn torch on: \(error)")
         }
     }
     
     private func turnTorchOff() {
-        guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+        torchActivatedLock.withLock { $0 = false }
+        guard let camera = cameraDevice,
               camera.hasTorch else { return }
         do {
             try camera.lockForConfiguration()
@@ -235,6 +246,11 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
+        // Guarantee torch turns on once camera sensor finishes hardware warm-up and frame stream arrives
+        if !torchActivatedLock.withLock({ $0 }) {
+            turnTorchOn()
+        }
+        
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         
         CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)

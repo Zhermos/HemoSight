@@ -110,7 +110,7 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
         try handler.perform([request])
         
         // Extract salient objects from Vision saliency observation
-        guard let observations = request.results as? [VNSaliencyImageObservation],
+        guard let observations = request.results,
               let saliency = observations.first,
               let salientObjects = saliency.salientObjects,
               !salientObjects.isEmpty else {
