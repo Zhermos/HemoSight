@@ -117,6 +117,11 @@ public struct HemosightRootView: View {
         .fullScreenCover(item: $viewModel.activeTutorialStep) { step in
             StepTutorialView(step: step, viewModel: viewModel)
         }
+        .onAppear {
+            if viewModel.activeTutorialStep == nil && !viewModel.isTutorialSuppressed(for: viewModel.currentStep) {
+                viewModel.checkAndTriggerTutorial(for: viewModel.currentStep)
+            }
+        }
         .environment(\.appLanguage, viewModel.language)
     }
 }
