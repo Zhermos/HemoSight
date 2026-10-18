@@ -94,7 +94,7 @@ public struct HemosightRootView: View {
                     }
                 }
                 
-                // Trailing: Help Button ("?") and Compact Reset Workflow Button ("รีเซ็ต" / "Reset")
+                // Trailing: Help Tutorial Button ("?") & Compact Reset Workflow Button ("รีเซ็ต" / "Reset")
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 12) {
                         Button {
@@ -104,7 +104,7 @@ public struct HemosightRootView: View {
                                 .font(.system(size: 18, weight: .semibold))
                                 .foregroundStyle(.blue)
                         }
-                        .accessibilityLabel(HemosightStrings.helpButtonLabel(for: viewModel.language))
+                        .accessibilityLabel(HemosightStrings.helpButtonAccessibilityLabel(for: viewModel.language))
                         
                         Button(HemosightStrings.reset(for: viewModel.language)) {
                             viewModel.restartWorkflow()
@@ -116,16 +116,8 @@ public struct HemosightRootView: View {
                 }
             }
         }
-        .fullScreenCover(item: Binding<ScreeningStep?>(
-            get: { viewModel.activeTutorialStep },
-            set: { viewModel.activeTutorialStep = $0 }
-        )) { step in
+        .fullScreenCover(item: $viewModel.activeTutorialStep) { step in
             StepTutorialView(step: step, viewModel: viewModel)
-        }
-        .onAppear {
-            if viewModel.activeTutorialStep == nil && !viewModel.isTutorialDismissed(for: viewModel.currentStep) {
-                viewModel.showTutorial(for: viewModel.currentStep)
-            }
         }
         .environment(\.appLanguage, viewModel.language)
     }

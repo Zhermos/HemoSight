@@ -1,119 +1,251 @@
 import SwiftUI
 
-/// Fullscreen elderly-accessible instructional tutorial sheet presented before each screening stage.
-/// Displays high-fidelity visual demonstration images (1.jpg, 2.jpg, 3.jpg), concise checklists,
-/// a "Don't show again" toggle, and a direct start button.
+// MARK: - Resilient Image Loader Helper
+
+/// Loads demonstration images for tutorial steps with multi-tiered resolution:
+/// 1. Named asset in main bundle (e.g. "tutorial_step1", "1")
+/// 2. Direct file in main bundle ("1.jpg")
+/// 3. Subdirectory file in main bundle ("Hemosight/Resources/Images/1.jpg")
+/// 4. Local filesystem fallback for dev/preview environments
+/// 5. Graceful SF Symbol fallback if image is missing (guaranteed 0 crashes)
+public enum TutorialImageLoader {
+    public static func loadStepImage(for step: ScreeningStep) -> UIImage? {
+        let stepNumber = step.rawValue
+        
+        // 0. Swift Package Manager: Bundle.module
+        #if SWIFT_PACKAGE
+        if let image = UIImage(named: "tutorial_step\(stepNumber)", in: Bundle.module, with: nil) {
+            return image
+        }
+        if let image = UIImage(named: "\(stepNumber)", in: Bundle.module, with: nil) {
+            return image
+        }
+        #endif
+        
+        // 1. Asset Catalog: "tutorial_step\(stepNumber)" or "\(stepNumber)"
+        if let image = UIImage(named: "tutorial_step\(stepNumber)") {
+            return image
+        }
+        if let image = UIImage(named: "\(stepNumber)") {
+            return image
+        }
+        
+        // 2. Direct bundle resource: "\(stepNumber).jpg"
+        if let path = Bundle.main.path(forResource: "\(stepNumber)", ofType: "jpg"),
+           let image = UIImage(contentsOfFile: path) {
+            return image
+        }
+        
+        // 3. Subdirectory in bundle: "Hemosight/Resources/Images/\(stepNumber).jpg"
+        if let path = Bundle.main.path(forResource: "\(stepNumber)", ofType: "jpg", inDirectory: "Hemosight/Resources/Images"),
+           let image = UIImage(contentsOfFile: path) {
+            return image
+        }
+        if let path = Bundle.main.path(forResource: "\(stepNumber)", ofType: "jpg", inDirectory: "Resources/Images"),
+           let image = UIImage(contentsOfFile: path) {
+            return image
+        }
+        
+        // 4. File system fallback for local testing & preview runs
+        let candidatePaths = [
+            "Hemosight/Resources/Images/\(stepNumber).jpg",
+            "Resources/Images/\(stepNumber).jpg",
+            "\(stepNumber).jpg"
+        ]
+        let fileManager = FileManager.default
+        let currentDir = fileManager.currentDirectoryPath
+        for relativePath in candidatePaths {
+            let fullPath = (currentDir as NSString).appendingPathComponent(relativePath)
+            if fileManager.fileExists(atPath: fullPath),
+               let image = UIImage(contentsOfFile: fullPath) {
+                return image
+            }
+        }
+        
+        return nil
+    }
+    
+    public static func fallbackSFSymbol(for step: ScreeningStep) -> String {
+        switch step {
+        case .step1VisualPhoto: return "camera.viewfinder"
+        case .step2FingerPPG: return "hand.point.up.fill"
+        case .step3ToePPG: return "shoe.fill"
+        case .step4Dashboard: return "waveform.path.ecg"
+        }
+    }
+}
+
+// MARK: - StepTutorialView Component
+
 public struct StepTutorialView: View {
     public let step: ScreeningStep
     public let viewModel: ScreeningWorkflowViewModel
-    
     @Environment(\.dismiss) private var dismiss
+    
     @State private var dontShowAgain: Bool = false
     
     public init(step: ScreeningStep, viewModel: ScreeningWorkflowViewModel) {
         self.step = step
         self.viewModel = viewModel
+        _dontShowAgain = State(initialValue: viewModel.isTutorialSuppressed(for: step))
+    }
+    
+    private var stepBadgeColor: Color {
+        switch step {
+        case .step1VisualPhoto: return .blue
+        case .step2FingerPPG: return .green
+        case .step3ToePPG: return .orange
+        case .step4Dashboard: return .purple
+        }
     }
     
     public var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Header Step Indicator & Badging
-                    HStack {
-                        Label(
-                            HemosightStrings.tutorialBadge(for: step, language: viewModel.language),
-                            systemImage: "lightbulb.fill"
-                        )
-                        .appFont(size: 13, weight: .bold)
-                        .foregroundStyle(.blue)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.12))
-                        .clipShape(Capsule())
+                    
+                    // 1. Instructional Illustration Card
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                            .shadow(color: Color.black.opacity(0.06), radius: 10, x: 0, y: 4)
                         
-                        Spacer()
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    
-                    // Step Title & Instructional Summary
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(HemosightStrings.tutorialTitle(for: step, language: viewModel.language))
-                            .appFont(size: 24, weight: .bold)
-                            .foregroundStyle(.primary)
-                            .toneMarkSafePadding()
-                        
-                        Text(HemosightStrings.tutorialSubtitle(for: step, language: viewModel.language))
-                            .appFont(size: 15, weight: .regular)
-                            .foregroundStyle(.secondary)
-                            .toneMarkSafePadding()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 20)
-                    
-                    // Demonstration Image (1.jpg, 2.jpg, 3.jpg)
-                    tutorialImageCard
-                        .padding(.horizontal, 20)
-                    
-                    // Key Instructional Checklist
-                    VStack(alignment: .leading, spacing: 14) {
-                        ForEach(HemosightStrings.tutorialPoints(for: step, language: viewModel.language), id: \.text) { point in
-                            HStack(alignment: .top, spacing: 12) {
-                                Image(systemName: point.icon)
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .foregroundStyle(.blue)
-                                    .frame(width: 28, height: 28)
+                        if let image = TutorialImageLoader.loadStepImage(for: step) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxHeight: 240)
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .padding(12)
+                        } else {
+                            // Safe fallback visual
+                            VStack(spacing: 12) {
+                                Image(systemName: TutorialImageLoader.fallbackSFSymbol(for: step))
+                                    .font(.system(size: 64, weight: .light))
+                                    .foregroundStyle(stepBadgeColor)
                                 
-                                Text(point.text)
-                                    .appFont(size: 15, weight: .medium)
-                                    .foregroundStyle(.primary)
-                                    .toneMarkSafePadding()
-                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                Text(HemosightStrings.stepTutorialSubtitle(for: step, language: viewModel.language))
+                                    .appFont(size: 14, weight: .medium)
+                                    .foregroundStyle(.secondary)
                             }
+                            .frame(height: 220)
+                            .frame(maxWidth: .infinity)
                         }
                     }
-                    .padding(18)
-                    .background(Color(uiColor: .secondarySystemGroupedBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .padding(.horizontal, 20)
+                    .padding(.top, 12)
                     
-                    // "Don't show again" Checkbox
+                    // 2. Step Badge and Title Header
+                    VStack(spacing: 8) {
+                        HStack(spacing: 6) {
+                            Text(HemosightStrings.stepperShortName(for: step, language: viewModel.language).uppercased())
+                                .appFont(size: 12, weight: .bold)
+                                .foregroundStyle(stepBadgeColor)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(stepBadgeColor.opacity(0.15))
+                                .clipShape(Capsule())
+                        }
+                        
+                        Text(HemosightStrings.stepTutorialTitle(for: step, language: viewModel.language))
+                            .appFont(size: 24, weight: .bold)
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(Color.primary)
+                            .padding(.horizontal, 20)
+                        
+                        Text(HemosightStrings.stepTutorialSubtitle(for: step, language: viewModel.language))
+                            .appFont(size: 15, weight: .medium)
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 20)
+                    }
+                    
+                    // 3. Clinical Instructions Checklist Box
+                    let checklistItems = HemosightStrings.stepTutorialChecklist(for: step, language: viewModel.language)
+                    if !checklistItems.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checklist")
+                                    .foregroundStyle(stepBadgeColor)
+                                    .font(.system(size: 18, weight: .semibold))
+                                
+                                Text(HemosightStrings.stepTutorialChecklistHeader(for: viewModel.language))
+                                    .appFont(size: 17, weight: .bold)
+                                    .foregroundStyle(Color.primary)
+                            }
+                            .padding(.bottom, 2)
+                            
+                            ForEach(Array(checklistItems.enumerated()), id: \.offset) { index, item in
+                                HStack(alignment: .top, spacing: 12) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(stepBadgeColor.opacity(0.15))
+                                            .frame(width: 28, height: 28)
+                                        Text("\(index + 1)")
+                                            .appFont(size: 13, weight: .bold)
+                                            .foregroundStyle(stepBadgeColor)
+                                    }
+                                    
+                                    Text(item)
+                                        .appFont(size: 15, weight: .regular)
+                                        .foregroundStyle(Color.primary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .lineSpacing(viewModel.language == .thai ? 3.0 : 2.0)
+                                }
+                            }
+                        }
+                        .padding(18)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(uiColor: .secondarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                        )
+                        .padding(.horizontal, 20)
+                    }
+                    
+                    // 4. "Don't show again" Checkbox Row (>= 44pt touch target)
                     Button {
                         dontShowAgain.toggle()
-                        viewModel.setTutorialDismissed(dontShowAgain, for: step)
+                        viewModel.setTutorialSuppressed(dontShowAgain, for: step)
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: dontShowAgain ? "checkmark.square.fill" : "square")
                                 .font(.system(size: 22, weight: .medium))
-                                .foregroundStyle(dontShowAgain ? .blue : .secondary)
+                                .foregroundStyle(dontShowAgain ? Color.blue : Color.secondary)
                             
-                            Text(HemosightStrings.dontShowAgain(for: viewModel.language))
-                                .appFont(size: 15, weight: .regular)
-                                .foregroundStyle(.primary)
+                            Text(HemosightStrings.dontShowAgainForStepCheckbox(for: viewModel.language))
+                                .appFont(size: 14, weight: .medium)
+                                .foregroundStyle(Color.secondary)
+                                .multilineTextAlignment(.leading)
                             
                             Spacer()
                         }
+                        .padding(.vertical, 8)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .frame(minHeight: 44)
                     .padding(.horizontal, 24)
-                    .padding(.top, 4)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(HemosightStrings.dontShowAgainForStepCheckbox(for: viewModel.language))
+                    .accessibilityValue(dontShowAgain ? "Checked" : "Unchecked")
                     
-                    // Primary Action Button (Elderly Accessible Touch Target > 56pt)
+                    // 5. Big Action Button (> 56pt height)
                     Button {
-                        viewModel.dismissActiveTutorial()
-                        dismiss()
+                        handleStartStep()
                     } label: {
                         HStack(spacing: 8) {
-                            Text(HemosightStrings.tutorialActionButton(for: step, language: viewModel.language))
-                                .appFont(size: 18, weight: .bold)
-                            Image(systemName: "arrow.right.circle.fill")
-                                .font(.system(size: 20, weight: .bold))
+                            Text(HemosightStrings.stepTutorialActionButton(for: step, language: viewModel.language))
+                                .appFont(size: 17, weight: .bold)
+                            
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 16, weight: .bold))
                         }
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 58)
+                        .frame(height: 56)
                         .background(
                             LinearGradient(
                                 colors: [Color.blue, Color.blue.opacity(0.85)],
@@ -122,24 +254,14 @@ public struct StepTutorialView: View {
                             )
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                        .shadow(color: Color.blue.opacity(0.25), radius: 8, x: 0, y: 4)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                    
-                    // Re-open Hint Notice
-                    HStack(spacing: 6) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.system(size: 13))
-                        Text(HemosightStrings.helpHintNotice(for: viewModel.language))
-                            .appFont(size: 12, weight: .regular)
-                    }
-                    .foregroundStyle(.secondary)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 24)
                 }
             }
             .background(Color(uiColor: .systemGroupedBackground))
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -147,127 +269,46 @@ public struct StepTutorialView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
+                            .font(.system(size: 22))
                             .foregroundStyle(.secondary)
                     }
-                    .accessibilityLabel("Close tutorial")
+                    .accessibilityLabel(HemosightStrings.tutorialCloseButton(for: viewModel.language))
                 }
             }
         }
         .onAppear {
-            self.dontShowAgain = viewModel.isTutorialDismissed(for: step)
-        }
-        .environment(\.appLanguage, viewModel.language)
-    }
-    
-    // MARK: - Resilient Image Loader
-    
-    @ViewBuilder
-    private var tutorialImageCard: some View {
-        Group {
-            if let image = loadTutorialImage() {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity)
-                    .frame(maxHeight: 280)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                    )
-                    .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 4)
-            } else {
-                // High-visibility fallback illustration placeholder
-                VStack(spacing: 12) {
-                    Image(systemName: fallbackIconName)
-                        .font(.system(size: 54, weight: .light))
-                        .foregroundStyle(.blue)
-                    Text(HemosightStrings.tutorialTitle(for: step, language: viewModel.language))
-                        .appFont(size: 15, weight: .medium)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 220)
-                .background(Color(uiColor: .secondarySystemGroupedBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            }
+            dontShowAgain = viewModel.isTutorialSuppressed(for: step)
         }
     }
     
-    private var fallbackIconName: String {
-        switch step {
-        case .step1VisualPhoto: return "camera.viewfinder"
-        case .step2FingerPPG: return "hand.point.up.left.fill"
-        case .step3ToePPG: return "waveform.path.ecg.rectangle"
-        case .step4Dashboard: return "doc.text.image"
-        }
-    }
-    
-    private func loadTutorialImage() -> UIImage? {
-        let stepNumber = step.rawValue
-        
-        // 1. Try Assets catalog by name: "tutorial_step1", "tutorial_step2", "tutorial_step3"
-        let assetName = "tutorial_step\(stepNumber)"
-        #if SWIFT_PACKAGE
-        if let img = UIImage(named: assetName, in: Bundle.module, with: nil) {
-            return img
-        }
-        #endif
-        if let img = UIImage(named: assetName) {
-            return img
-        }
-        if let img = UIImage(named: "\(stepNumber)") {
-            return img
-        }
-        
-        // 2. Try App Bundle resource files
-        if let bundlePath = Bundle.main.path(forResource: "\(stepNumber)", ofType: "jpg"),
-           let img = UIImage(contentsOfFile: bundlePath) {
-            return img
-        }
-        if let bundlePath = Bundle.main.path(forResource: assetName, ofType: "jpg"),
-           let img = UIImage(contentsOfFile: bundlePath) {
-            return img
-        }
-        
-        // 3. Try Relative and local development directories
-        let localPaths = [
-            "Hemosight/Resources/Images/\(stepNumber).jpg",
-            "Hemosight/Resources/Images/tutorial_step\(stepNumber).jpg",
-            "\(stepNumber).jpg",
-            "../\(stepNumber).jpg"
-        ]
-        
-        for path in localPaths {
-            if let img = UIImage(contentsOfFile: path) {
-                return img
-            }
-        }
-        
-        return nil
+    private func handleStartStep() {
+        viewModel.setTutorialSuppressed(dontShowAgain, for: step)
+        viewModel.dismissActiveTutorial()
+        dismiss()
     }
 }
 
 // MARK: - Previews
 
-#Preview("Step 1 Tutorial - Foot Photo (Thai)") {
+#if DEBUG
+#Preview("Step 1 Tutorial - Thai") {
     StepTutorialView(
         step: .step1VisualPhoto,
-        viewModel: ScreeningWorkflowViewModel()
+        viewModel: ScreeningWorkflowViewModel.preview(step: .step1VisualPhoto, language: .thai)
     )
 }
 
-#Preview("Step 2 Tutorial - Finger Pulse (Thai)") {
+#Preview("Step 2 Tutorial - English") {
     StepTutorialView(
         step: .step2FingerPPG,
-        viewModel: ScreeningWorkflowViewModel()
+        viewModel: ScreeningWorkflowViewModel.preview(step: .step2FingerPPG, language: .english)
     )
 }
 
-#Preview("Step 3 Tutorial - Big Toe Pulse (Thai)") {
+#Preview("Step 3 Tutorial - Thai") {
     StepTutorialView(
         step: .step3ToePPG,
-        viewModel: ScreeningWorkflowViewModel()
+        viewModel: ScreeningWorkflowViewModel.preview(step: .step3ToePPG, language: .thai)
     )
 }
+#endif

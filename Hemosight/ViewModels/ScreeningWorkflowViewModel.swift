@@ -47,9 +47,46 @@ public final class ScreeningWorkflowViewModel {
     
     // Workflow State
     public var currentStep: ScreeningStep = .step1VisualPhoto
-    public var activeTutorialStep: ScreeningStep? = nil
     public var isProcessing: Bool = false
     public var errorMessage: String?
+    
+    // Contextual Tutorial Flow State
+    public var activeTutorialStep: ScreeningStep? = nil
+    
+    public func isTutorialSuppressed(for step: ScreeningStep) -> Bool {
+        UserDefaults.standard.bool(forKey: "hide_tutorial_step_\(step.rawValue)")
+    }
+    
+    public func setTutorialSuppressed(_ suppressed: Bool, for step: ScreeningStep) {
+        UserDefaults.standard.set(suppressed, forKey: "hide_tutorial_step_\(step.rawValue)")
+    }
+    
+    public func isTutorialDismissed(for step: ScreeningStep) -> Bool {
+        isTutorialSuppressed(for: step)
+    }
+    
+    public func setTutorialDismissed(_ dismissed: Bool, for step: ScreeningStep) {
+        setTutorialSuppressed(dismissed, for: step)
+    }
+    
+    public func checkAndTriggerTutorial(for step: ScreeningStep) {
+        guard step != .step4Dashboard else { return }
+        if !isTutorialSuppressed(for: step) {
+            activeTutorialStep = step
+        }
+    }
+    
+    public func showTutorialForCurrentStep() {
+        if isRecordingPPG {
+            stopPPGScanEarly()
+        }
+        let stepToShow = (currentStep == .step4Dashboard ? .step1VisualPhoto : currentStep)
+        activeTutorialStep = stepToShow
+    }
+    
+    public func dismissActiveTutorial() {
+        activeTutorialStep = nil
+    }
     
     // Patient Data
     public var patientName: String = "Eleanor Vance"
@@ -111,9 +148,7 @@ public final class ScreeningWorkflowViewModel {
            let appLang = AppLanguage(rawValue: storedLang) {
             self.language = appLang
         }
-        if !isTutorialDismissed(for: .step1VisualPhoto) {
-            self.activeTutorialStep = .step1VisualPhoto
-        }
+        checkAndTriggerTutorial(for: .step1VisualPhoto)
         bindCameraStreams()
     }
     
@@ -257,10 +292,8 @@ public final class ScreeningWorkflowViewModel {
             self.visualResult = result
             self.isProcessing = false
             self.currentStep = .step2FingerPPG
-            if !self.isTutorialDismissed(for: .step2FingerPPG) {
-                self.activeTutorialStep = .step2FingerPPG
-            }
             triggerHapticFeedback(.success)
+            checkAndTriggerTutorial(for: .step2FingerPPG)
         } catch {
             self.isProcessing = false
             self.errorMessage = error.localizedDescription
@@ -344,9 +377,7 @@ public final class ScreeningWorkflowViewModel {
             )
             // Advance to Toe Scan
             currentStep = .step3ToePPG
-            if !isTutorialDismissed(for: .step3ToePPG) {
-                activeTutorialStep = .step3ToePPG
-            }
+            checkAndTriggerTutorial(for: .step3ToePPG)
         } else if currentStep == .step3ToePPG {
             // Filter and extract Toe metrics
             toeFilteredSamples = dspEngine.filterSignal(toeRawSamples)
@@ -421,32 +452,7 @@ public final class ScreeningWorkflowViewModel {
         smoothedBPMValue = nil
         rollingBpmWindow.removeAll()
         currentStep = .step1VisualPhoto
-        if !isTutorialDismissed(for: .step1VisualPhoto) {
-            activeTutorialStep = .step1VisualPhoto
-        }
-    }
-    
-    // MARK: - Step Tutorials Management
-    
-    public func isTutorialDismissed(for step: ScreeningStep) -> Bool {
-        UserDefaults.standard.bool(forKey: "hide_tutorial_step_\(step.rawValue)")
-    }
-    
-    public func setTutorialDismissed(_ dismissed: Bool, for step: ScreeningStep) {
-        UserDefaults.standard.set(dismissed, forKey: "hide_tutorial_step_\(step.rawValue)")
-    }
-    
-    public func showTutorial(for step: ScreeningStep) {
-        activeTutorialStep = step
-    }
-    
-    public func showTutorialForCurrentStep() {
-        guard currentStep != .step4Dashboard else { return }
-        activeTutorialStep = currentStep
-    }
-    
-    public func dismissActiveTutorial() {
-        activeTutorialStep = nil
+        checkAndTriggerTutorial(for: .step1VisualPhoto)
     }
     
     private func triggerHapticFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {
@@ -468,7 +474,8 @@ extension ScreeningWorkflowViewModel {
         contactState: CameraContactState = .optimal,
         errorMessage: String? = nil,
         language: AppLanguage = .english,
-        liveBPM: Int? = nil
+        liveBPM: Int? = nil,
+        activeTutorialStep: ScreeningStep? = nil
     ) -> ScreeningWorkflowViewModel {
         let vm = ScreeningWorkflowViewModel()
         vm.language = language
@@ -479,6 +486,7 @@ extension ScreeningWorkflowViewModel {
         vm.currentContactState = contactState
         vm.errorMessage = errorMessage
         vm.liveBPM = liveBPM ?? (isRecordingPPG ? 72 : nil)
+        vm.activeTutorialStep = activeTutorialStep
         if isRecordingPPG {
             vm.scanSecondsRemaining = 18
             vm.liveWaveformPoints = (0..<50).map { i in
