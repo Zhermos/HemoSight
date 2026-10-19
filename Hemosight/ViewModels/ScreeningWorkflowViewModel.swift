@@ -204,14 +204,14 @@ public final class ScreeningWorkflowViewModel {
     
     // Services
     private let visualScanner: any BilateralFootScannerServiceProtocol
-    nonisolated private let cameraPPG: any CameraPPGServiceProtocol
-    nonisolated private let dspEngine: SignalProcessingEngine
+    private let cameraPPG: any CameraPPGServiceProtocol
+    private let dspEngine: SignalProcessingEngine
     private let classifier: VascularRiskClassifier
     private let reportService: any ReportGenerationServiceProtocol
-    nonisolated private let motionService: any MotionArtifactServiceProtocol
+    private let motionService: any MotionArtifactServiceProtocol
     
     private var cancellables = Set<AnyCancellable>()
-    nonisolated private var timerTask: Task<Void, Never>?
+    private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var sampleCounter: UInt64 = 0
     @ObservationIgnored private var rollingBpmWindow: [Float] = []
     @ObservationIgnored private var smoothedBPMValue: Double? = nil
@@ -255,12 +255,6 @@ public final class ScreeningWorkflowViewModel {
             reportService: reportService ?? ReportGenerationService(),
             motionService: motionService ?? MotionArtifactFilterService()
         )
-    }
-    
-    deinit {
-        timerTask?.cancel()
-        motionService.stopMonitoring()
-        cameraPPG.stopCapture()
     }
     
     // MARK: - Stream Bindings

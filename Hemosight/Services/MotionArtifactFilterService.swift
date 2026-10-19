@@ -18,7 +18,7 @@ public protocol MotionArtifactServiceProtocol: Sendable {
     var motionStabilityPublisher: AnyPublisher<DeviceMotionStability, Never> { get }
     var currentStability: DeviceMotionStability { get }
     func startMonitoring()
-    nonisolated func stopMonitoring()
+    func stopMonitoring()
 }
 
 /// On-device motion stabilization and rejection system using Apple's CoreMotion framework.
@@ -66,7 +66,7 @@ public final class MotionArtifactFilterService: MotionArtifactServiceProtocol, @
         }
     }
     
-    nonisolated public func stopMonitoring() {
+    public func stopMonitoring() {
         motionManager.stopDeviceMotionUpdates()
         stabilitySubject.send(.stable)
     }
@@ -122,7 +122,7 @@ public final class MotionArtifactServiceSpyingStub: MotionArtifactServiceProtoco
         startMonitoringCallCount += 1
     }
     
-    nonisolated public func stopMonitoring() {
+    public func stopMonitoring() {
         stopMonitoringCallCount += 1
         stabilitySubject.send(.stable)
     }
