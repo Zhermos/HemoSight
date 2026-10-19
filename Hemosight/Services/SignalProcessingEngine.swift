@@ -220,7 +220,7 @@ public final class SignalProcessingEngine: Sendable {
     
     /// Estimates instantaneous heart rate (BPM) from a rolling window of recent samples (~4 seconds, 240 samples at 60 FPS).
     /// Uses a refractory period of >= 400ms (max 150 BPM) and local thresholding.
-    public func estimateInstantaneousBPM(fromWindow samples: [Float]) -> Double? {
+    nonisolated public func estimateInstantaneousBPM(fromWindow samples: [Float]) -> Double? {
         guard samples.count >= 120 else { return nil } // Require at least 2 seconds of data
         
         // Zero-phase bandpass filter the window

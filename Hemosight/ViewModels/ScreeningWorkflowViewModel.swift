@@ -204,14 +204,14 @@ public final class ScreeningWorkflowViewModel {
     
     // Services
     private let visualScanner: any BilateralFootScannerServiceProtocol
-    private let cameraPPG: any CameraPPGServiceProtocol
-    private let dspEngine: SignalProcessingEngine
+    nonisolated private let cameraPPG: any CameraPPGServiceProtocol
+    nonisolated private let dspEngine: SignalProcessingEngine
     private let classifier: VascularRiskClassifier
     private let reportService: any ReportGenerationServiceProtocol
-    private let motionService: any MotionArtifactServiceProtocol
+    nonisolated private let motionService: any MotionArtifactServiceProtocol
     
     private var cancellables = Set<AnyCancellable>()
-    private var timerTask: Task<Void, Never>?
+    nonisolated(unsafe) private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var sampleCounter: UInt64 = 0
     @ObservationIgnored private var rollingBpmWindow: [Float] = []
     @ObservationIgnored private var smoothedBPMValue: Double? = nil
@@ -366,31 +366,28 @@ public final class ScreeningWorkflowViewModel {
         let windowSnapshot = self.rollingBpmWindow
         let engine = self.dspEngine
         
-        // Compute in background Task to preserve MainActor responsiveness
         Task.detached(priority: .userInitiated) { [weak self] in
-            guard let rawBPM = engine.estimateInstantaneousBPM(fromWindow: windowSnapshot) else {
-                await MainActor.run {
-                    guard let self = self, self.isRecordingPPG else { return }
-                    self.updateLiveBPM(nil)
-                }
-                return
-            }
-            
-            await MainActor.run {
-                guard let self = self, self.isRecordingPPG else { return }
-                // Apply Exponential Moving Average (EMA) to smooth BPM: alpha = 0.35
-                let alpha = 0.35
-                let smoothed: Double
-                if let previous = self.smoothedBPMValue {
-                    smoothed = (alpha * rawBPM) + ((1.0 - alpha) * previous)
-                } else {
-                    smoothed = rawBPM
-                }
-                self.smoothedBPMValue = smoothed
-                let integerBPM = Int(smoothed.rounded())
-                self.updateLiveBPM(integerBPM)
-            }
+            let rawBPM = engine.estimateInstantaneousBPM(fromWindow: windowSnapshot)
+            await self?.applySmoothedBPM(rawBPM)
         }
+    }
+    
+    private func applySmoothedBPM(_ rawBPM: Double?) {
+        guard isRecordingPPG else { return }
+        guard let rawBPM = rawBPM else {
+            updateLiveBPM(nil)
+            return
+        }
+        
+        let alpha = 0.35
+        let smoothed: Double
+        if let previous = smoothedBPMValue {
+            smoothed = (alpha * rawBPM) + ((1.0 - alpha) * previous)
+        } else {
+            smoothed = rawBPM
+        }
+        smoothedBPMValue = smoothed
+        updateLiveBPM(Int(smoothed.rounded()))
     }
     
     private func updateLiveBPM(_ newBPM: Int?) {

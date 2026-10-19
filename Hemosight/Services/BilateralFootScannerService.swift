@@ -37,8 +37,11 @@ public protocol BilateralFootScannerServiceProtocol: Sendable {
 public final class BilateralFootScannerService: BilateralFootScannerServiceProtocol, @unchecked Sendable {
     
     private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+    private let yoloDetector: any YOLOFootDetectorServiceProtocol
     
-    public init() {}
+    public init(yoloDetector: (any YOLOFootDetectorServiceProtocol)? = nil) {
+        self.yoloDetector = yoloDetector ?? YOLOFootDetectorService()
+    }
     
     /// Analyzes a high-resolution captured bilateral dorsal foot photo.
     /// - Parameter image: High-res UIImage showing left and right feet side-by-side.
@@ -48,8 +51,8 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
             throw VisualInspectionError.invalidImageData
         }
         
-        // 1. Run Apple Vision Saliency & Contour Analysis to isolate foot bounding boxes
-        let (leftBoundingBox, rightBoundingBox) = try detectBilateralFootRegions(cgImage: cgImage)
+        // 1. Run YOLO Object Detection (with fallback to Apple Vision Saliency)
+        let (leftBoundingBox, rightBoundingBox) = try await detectBilateralFootRegions(cgImage: cgImage)
         
         // 2. Crop left and right foot ROIs
         guard let leftFootCG = cgImage.cropping(to: leftBoundingBox),
@@ -107,16 +110,22 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
     
     // MARK: - Vision Segmentation & ROI Isolation
     
-    private func detectBilateralFootRegions(cgImage: CGImage) throws -> (CGRect, CGRect) {
+    private func detectBilateralFootRegions(cgImage: CGImage) async throws -> (leftBox: CGRect, rightBox: CGRect) {
+        // ลองใช้ YOLO ก่อนเป็นอันดับแรก
+        if let yoloResult = try? await yoloDetector.detectFootRegions(cgImage: cgImage) {
+            return yoloResult
+        }
+        
+        // Fallback: ใช้ Apple Vision Saliency เดิมหากไม่มีโมเดลหรือตรวจจับไม่พบ
         let width = CGFloat(cgImage.width)
         let height = CGFloat(cgImage.height)
+        let midX = width / 2.0
         
-        // Default fallback: split middle horizontally with 5% outer margin and 15% vertical margin
-        let midX = width * 0.5
-        let marginX = width * 0.05
+        let defaultRoiWidth = width * 0.38
+        let defaultRoiHeight = height * 0.70
+        let marginX = width * 0.08
         let marginY = height * 0.15
-        let defaultRoiWidth = midX - (2.0 * marginX)
-        let defaultRoiHeight = height - (2.0 * marginY)
+        
         let defaultLeftBox = CGRect(x: marginX, y: marginY, width: defaultRoiWidth, height: defaultRoiHeight)
         let defaultRightBox = CGRect(x: midX + marginX, y: marginY, width: defaultRoiWidth, height: defaultRoiHeight)
         
@@ -124,7 +133,6 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
         try handler.perform([request])
         
-        // Extract salient objects from Vision saliency observation
         guard let observations = request.results,
               let saliency = observations.first,
               let salientObjects = saliency.salientObjects,
@@ -132,7 +140,6 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
             return (defaultLeftBox, defaultRightBox)
         }
         
-        // Convert normalized Vision coordinates (origin bottom-left) to CGImage pixel coordinates (origin top-left)
         let pixelBoxes: [CGRect] = salientObjects.map { obs in
             let norm = obs.boundingBox
             return CGRect(
@@ -143,7 +150,6 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
             )
         }
         
-        // Partition salient boxes into left half (midX <= midX) and right half (> midX)
         let leftCandidates = pixelBoxes.filter { $0.midX < midX }
         let rightCandidates = pixelBoxes.filter { $0.midX >= midX }
         
@@ -161,7 +167,6 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
             rightBox = defaultRightBox
         }
         
-        // Validate that extracted ROIs are non-empty and reasonably sized
         let finalLeft = (leftBox.width > 20 && leftBox.height > 20) ? leftBox : defaultLeftBox
         let finalRight = (rightBox.width > 20 && rightBox.height > 20) ? rightBox : defaultRightBox
         
