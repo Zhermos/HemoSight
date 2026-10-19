@@ -157,7 +157,7 @@ public final class ScreeningWorkflowViewModel {
         case .step2ToePPG:
             finalizeScreeningAssessment()
             currentStep = .step3Dashboard
-            checkAndTriggerTutorial(for: .step3Dashboard)
+            // ไม่ต้องเรียก checkAndTriggerTutorial ในหน้านี้แล้ว
         case .step3Dashboard:
             break
         }
@@ -211,7 +211,7 @@ public final class ScreeningWorkflowViewModel {
     nonisolated private let motionService: any MotionArtifactServiceProtocol
     
     private var cancellables = Set<AnyCancellable>()
-    nonisolated(unsafe) private var timerTask: Task<Void, Never>?
+    nonisolated private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var sampleCounter: UInt64 = 0
     @ObservationIgnored private var rollingBpmWindow: [Float] = []
     @ObservationIgnored private var smoothedBPMValue: Double? = nil

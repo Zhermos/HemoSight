@@ -137,28 +137,39 @@ public struct ClinicalDashboardView: View {
         .padding(.horizontal)
     }
     
-    // Supplemental Foot Inspection Card (Optional for higher fidelity)
+    // Supplemental Foot Inspection Card (Enhanced with rich demonstration visual & camera icon)
     private func supplementalFootScanCard(report: ComprehensivePADReport) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
+            // Header with clear badge
             HStack(spacing: 8) {
                 Image(systemName: "camera.viewfinder")
                     .foregroundStyle(.blue)
                     .font(.title3)
                 Text(HemosightStrings.supplementalFootScanHeader(for: appLanguage))
                     .appFont(size: appLanguage == .thai ? 16 : 17, weight: .bold)
+                
+                Spacer()
+                
+                Text(appLanguage == .thai ? "แนะนำ" : "Recommended")
+                    .appFont(size: 11, weight: .bold)
+                    .foregroundStyle(.blue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.blue.opacity(0.12))
+                    .clipShape(Capsule())
             }
             .toneMarkSafePadding(.bottom, 2)
             
             if let visual = report.visualResult, let footImage = viewModel.capturedFootImage {
-                // Foot Photo Already Analyzed
+                // State A: Foot Photo Already Analyzed
                 HStack(spacing: 14) {
                     Image(uiImage: footImage)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .frame(width: 84, height: 84)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
                                 .stroke(Color.blue.opacity(0.3), lineWidth: 1.5)
                         )
                     
@@ -167,38 +178,85 @@ public struct ClinicalDashboardView: View {
                             .appFont(size: 14, weight: .bold)
                             .foregroundStyle(Color.primary)
                         
-                        Text(visual.isClinicallyAsymmetric ? (appLanguage == .thai ? "พบความไม่สมมาตรของสีผิว" : "Color asymmetry detected") : (appLanguage == .thai ? "สีผิวสมมาตรปกติ" : "Normal skin symmetry"))
+                        Text(visual.isClinicallyAsymmetric 
+                             ? (appLanguage == .thai ? "พบความไม่สมมาตรของสีผิว" : "Color asymmetry detected") 
+                             : (appLanguage == .thai ? "สีผิวสมมาตรปกติ" : "Normal skin symmetry"))
                             .appFont(size: 13, weight: .regular)
                             .foregroundStyle(.secondary)
                         
                         Button {
                             viewModel.isShowingSupplementalFootCamera = true
                         } label: {
-                            Text(HemosightStrings.supplementalFootScanRetake(for: appLanguage))
-                                .appFont(size: 13, weight: .semibold)
-                                .foregroundStyle(.blue)
+                            HStack(spacing: 5) {
+                                Image(systemName: "arrow.triangle.2.circlepath.camera")
+                                Text(HemosightStrings.supplementalFootScanRetake(for: appLanguage))
+                            }
+                            .appFont(size: 13, weight: .semibold)
+                            .foregroundStyle(.blue)
                         }
                         .padding(.top, 2)
                     }
                 }
             } else {
-                // Foot Photo Not Yet Performed (Optional Prompt)
-                Text(HemosightStrings.supplementalFootScanPrompt(for: appLanguage))
-                    .appFont(size: appLanguage == .thai ? 13.5 : 14, weight: .regular)
-                    .foregroundStyle(.secondary)
-                    .lineSpacing(appLanguage == .thai ? 3.0 : 2.0)
-                
-                HStack(spacing: 12) {
-                    // Primary Action: Camera Capture (> 56pt height)
-                    Button {
-                        viewModel.isShowingSupplementalFootCamera = true
-                    } label: {
-                        HStack(spacing: 8) {
+                // State B: Foot Photo Not Yet Taken (Visual Card with Demo Image & Big Camera Button)
+                VStack(spacing: 14) {
+                    // Visual Preview Row: Shows feet demonstration thumbnail (1.jpg)
+                    HStack(spacing: 14) {
+                        ZStack(alignment: .bottomTrailing) {
+                            if let demoImage = TutorialImageLoader.loadFootPhotoImage() {
+                                Image(uiImage: demoImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 84, height: 84)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            } else {
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Color.blue.opacity(0.1))
+                                    .frame(width: 84, height: 84)
+                                    .overlay(
+                                        Image(systemName: "feet")
+                                            .font(.system(size: 32))
+                                            .foregroundStyle(.blue)
+                                    )
+                            }
+                            
+                            // Camera Badge Overlay
                             Image(systemName: "camera.fill")
-                                .font(.system(size: 16, weight: .bold))
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(6)
+                                .background(Color.blue)
+                                .clipShape(Circle())
+                                .offset(x: 4, y: 4)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(appLanguage == .thai ? "ถ่ายภาพหลังเท้าทั้งสองข้าง" : "Bilateral Dorsal Feet Photo")
+                                .appFont(size: 15, weight: .bold)
+                                .foregroundStyle(.primary)
+                            
+                            Text(HemosightStrings.supplementalFootScanPrompt(for: appLanguage))
+                                .appFont(size: 12.5, weight: .regular)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(3)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    // Primary Action Button (> 56pt height with Camera Icon)
+                    Button {
+                        if !viewModel.isTutorialSuppressed(for: .step3Dashboard) {
+                            viewModel.isShowingSupplementalFootTutorial = true
+                        } else {
+                            viewModel.isShowingSupplementalFootCamera = true
+                        }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "camera.circle.fill")
+                                .font(.system(size: 24, weight: .bold))
+                            
                             Text(HemosightStrings.supplementalFootScanButton(for: appLanguage))
-                                .appFont(size: appLanguage == .thai ? 14 : 15, weight: .bold)
-                                .multilineTextAlignment(.center)
+                                .appFont(size: appLanguage == .thai ? 15 : 16, weight: .bold)
                         }
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -210,27 +268,28 @@ public struct ClinicalDashboardView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .shadow(color: Color.blue.opacity(0.25), radius: 6, x: 0, y: 3)
                     }
-                }
-                
-                // Secondary Link: View Instructions / Tutorial
-                Button {
-                    viewModel.showSupplementalFootTutorial()
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(HemosightStrings.supplementalFootScanTutorialLink(for: appLanguage))
-                            .appFont(size: 13.5, weight: .medium)
-                            .foregroundStyle(.blue)
+                    
+                    // Secondary Link: View Instructions / Tutorial
+                    Button {
+                        viewModel.showSupplementalFootTutorial()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "info.circle")
+                            Text(HemosightStrings.supplementalFootScanTutorialLink(for: appLanguage))
+                        }
+                        .appFont(size: 13, weight: .medium)
+                        .foregroundStyle(.blue)
                     }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, 4)
+                    .padding(.top, -2)
                 }
             }
         }
-        .padding()
+        .padding(16)
         .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(.rect(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .padding(.horizontal)
     }
     

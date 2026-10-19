@@ -48,7 +48,7 @@ public protocol CameraPPGServiceProtocol: Sendable {
     var signalQualitySubject: CurrentValueSubject<Double, Never> { get }
     
     func startCapture() async throws
-    func stopCapture()
+    nonisolated func stopCapture()
 }
 
 /// AVFoundation pipeline capturing frames locked at 60 FPS with torch on, manual exposure, and real-time SQI checking.
@@ -121,7 +121,7 @@ public final class CameraPPGService: NSObject, AVCaptureVideoDataOutputSampleBuf
         #endif
     }
     
-    public func stopCapture() {
+    nonisolated public func stopCapture() {
         #if targetEnvironment(simulator)
         simulatorTimerTask?.cancel()
         simulatorTimerTask = nil
@@ -365,7 +365,7 @@ public final class CameraPPGServiceSpyingStub: CameraPPGServiceProtocol, @unchec
         }
     }
     
-    public func stopCapture() {
+    nonisolated public func stopCapture() {
         stopCaptureCallCount += 1
     }
     

@@ -304,6 +304,7 @@ public struct StepTutorialView: View {
 public struct FootPhotoTutorialSheetView: View {
     public let viewModel: ScreeningWorkflowViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appLanguage) private var appLanguage
     
     public init(viewModel: ScreeningWorkflowViewModel) {
         self.viewModel = viewModel
@@ -402,15 +403,20 @@ public struct FootPhotoTutorialSheetView: View {
                     
                     // Action Button (> 56pt)
                     Button {
+                        viewModel.setTutorialSuppressed(true, for: .step3Dashboard)
                         dismiss()
+                        viewModel.isShowingSupplementalFootCamera = true
                     } label: {
-                        Text(HemosightStrings.tutorialCloseButton(for: viewModel.language))
-                            .appFont(size: 17, weight: .bold)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(Color.blue)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        HStack(spacing: 8) {
+                            Image(systemName: "camera.fill")
+                            Text(appLanguage == .thai ? "เปิดกล้องเพื่อถ่ายภาพหลังเท้า" : "Open Camera & Capture")
+                                .appFont(size: 17, weight: .bold)
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(Color.blue)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 24)

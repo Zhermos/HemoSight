@@ -12,9 +12,7 @@ public final class SignalProcessingEngine: Sendable {
     
     // MARK: - Zero-Phase Bandpass Filtering (0.5 Hz - 5.0 Hz)
     
-    /// Applies zero-phase forward-backward filtering to remove DC baseline drift (<0.5 Hz) and high-frequency motion jitter (>5.0 Hz).
-    /// Using zero-phase (forward then backward pass) preserves absolute phase and morphology, critical for accurate Systolic Rise Time (SRT).
-    public func filterSignal(_ rawSignal: [Float]) -> [Float] {
+    nonisolated public func filterSignal(_ rawSignal: [Float]) -> [Float] {
         guard rawSignal.count > 15 else { return rawSignal }
         
         let n = rawSignal.count
@@ -43,7 +41,7 @@ public final class SignalProcessingEngine: Sendable {
         return zeroPhaseResult
     }
     
-    private func applyIIRFilter(input: [Float], b: [Float], a: [Float]) -> [Float] {
+    nonisolated private func applyIIRFilter(input: [Float], b: [Float], a: [Float]) -> [Float] {
         let n = input.count
         var output = [Float](repeating: 0.0, count: n)
         
