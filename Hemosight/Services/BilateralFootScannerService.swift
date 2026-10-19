@@ -37,11 +37,8 @@ public protocol BilateralFootScannerServiceProtocol: Sendable {
 public final class BilateralFootScannerService: BilateralFootScannerServiceProtocol, @unchecked Sendable {
     
     private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
-    private let yoloDetector: any YOLOFootDetectorServiceProtocol
     
-    public init(yoloDetector: (any YOLOFootDetectorServiceProtocol)? = nil) {
-        self.yoloDetector = yoloDetector ?? YOLOFootDetectorService()
-    }
+    public init() {}
     
     /// Analyzes a high-resolution captured bilateral dorsal foot photo.
     /// - Parameter image: High-res UIImage showing left and right feet side-by-side.
@@ -51,8 +48,8 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
             throw VisualInspectionError.invalidImageData
         }
         
-        // 1. Run YOLO Object Detection (with fallback to Apple Vision Saliency)
-        let (leftBoundingBox, rightBoundingBox) = try await detectBilateralFootRegions(cgImage: cgImage)
+        // 1. Run Apple Vision Saliency & Contour Analysis to isolate foot bounding boxes
+        let (leftBoundingBox, rightBoundingBox) = try detectBilateralFootRegions(cgImage: cgImage)
         
         // 2. Crop left and right foot ROIs
         guard let leftFootCG = cgImage.cropping(to: leftBoundingBox),
@@ -110,13 +107,7 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
     
     // MARK: - Vision Segmentation & ROI Isolation
     
-    private func detectBilateralFootRegions(cgImage: CGImage) async throws -> (leftBox: CGRect, rightBox: CGRect) {
-        // ลองใช้ YOLO ก่อนเป็นอันดับแรก
-        if let yoloResult = try? await yoloDetector.detectFootRegions(cgImage: cgImage) {
-            return yoloResult
-        }
-        
-        // Fallback: ใช้ Apple Vision Saliency เดิมหากไม่มีโมเดลหรือตรวจจับไม่พบ
+    private func detectBilateralFootRegions(cgImage: CGImage) throws -> (leftBox: CGRect, rightBox: CGRect) {
         let width = CGFloat(cgImage.width)
         let height = CGFloat(cgImage.height)
         let midX = width / 2.0
@@ -181,11 +172,8 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
         let b: CGFloat // Yellow-Blue (+b = yellow, -b = blue)
     }
     
-    /// Computes the average CIE L*a*b* coordinates for a given CGImage.
     private func calculateAverageCIELAB(from cgImage: CGImage) -> CIELAB {
         let ciImage = CIImage(cgImage: cgImage)
-        
-        // Use CIAreaAverage filter to compute mean RGB across the foot region
         let extentVector = CIVector(cgRect: ciImage.extent)
         guard let filter = CIFilter(name: "CIAreaAverage", parameters: [
             kCIInputImageKey: ciImage,
@@ -195,90 +183,70 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
         }
         
         var bitmap = [UInt8](repeating: 0, count: 4)
-        let sRGBColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
         ciContext.render(
             outputImage,
             toBitmap: &bitmap,
             rowBytes: 4,
             bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
             format: .RGBA8,
-            colorSpace: sRGBColorSpace
+            colorSpace: CGColorSpaceCreateDeviceRGB()
         )
         
-        let rNorm = CGFloat(bitmap[0]) / 255.0
-        let gNorm = CGFloat(bitmap[1]) / 255.0
-        let bNorm = CGFloat(bitmap[2]) / 255.0
+        let r = CGFloat(bitmap[0]) / 255.0
+        let g = CGFloat(bitmap[1]) / 255.0
+        let b = CGFloat(bitmap[2]) / 255.0
         
-        return sRGBToCIELAB(r: rNorm, g: gNorm, b: bNorm)
+        return rgbToCIELAB(r: r, g: g, b: b)
     }
     
-    /// Standards-compliant sRGB to CIE L*a*b* transform (D65 illuminant).
-    private func sRGBToCIELAB(r: CGFloat, g: CGFloat, b: CGFloat) -> CIELAB {
-        // Inverse gamma companding
-        func pivotRGB(_ val: CGFloat) -> CGFloat {
-            return (val > 0.04045) ? pow((val + 0.055) / 1.055, 2.4) : (val / 12.92)
+    private func rgbToCIELAB(r: CGFloat, g: CGFloat, b: CGFloat) -> CIELAB {
+        func pivotRgb(_ n: CGFloat) -> CGFloat {
+            n > 0.04045 ? pow((n + 0.055) / 1.055, 2.4) : (n / 12.92)
         }
         
-        let rLinear = pivotRGB(r) * 100.0
-        let gLinear = pivotRGB(g) * 100.0
-        let bLinear = pivotRGB(b) * 100.0
+        let rL = pivotRgb(r) * 100.0
+        let gL = pivotRgb(g) * 100.0
+        let bL = pivotRgb(b) * 100.0
         
-        // Convert to CIE XYZ (Observer = 2°, Illuminant = D65)
-        let X = rLinear * 0.4124 + gLinear * 0.3576 + bLinear * 0.1805
-        let Y = rLinear * 0.2126 + gLinear * 0.7152 + bLinear * 0.0722
-        let Z = rLinear * 0.0193 + gLinear * 0.1192 + bLinear * 0.9505
+        // Standard D65 observer reference illuminant
+        let x = rL * 0.4124 + gL * 0.3576 + bL * 0.1805
+        let y = rL * 0.2126 + gL * 0.7152 + bL * 0.0722
+        let z = rL * 0.0193 + gL * 0.1192 + bL * 0.9505
         
-        // D65 reference white points
-        let Xn: CGFloat = 95.047
-        let Yn: CGFloat = 100.000
-        let Zn: CGFloat = 108.883
+        let refX: CGFloat = 95.047
+        let refY: CGFloat = 100.000
+        let refZ: CGFloat = 108.883
         
-        func pivotXYZ(_ val: CGFloat) -> CGFloat {
-            return (val > 0.008856) ? pow(val, 1.0 / 3.0) : (7.787 * val) + (16.0 / 116.0)
+        func pivotXyz(_ n: CGFloat) -> CGFloat {
+            n > 0.008856 ? pow(n, 1.0 / 3.0) : (7.787 * n) + (16.0 / 116.0)
         }
         
-        let fx = pivotXYZ(X / Xn)
-        let fy = pivotXYZ(Y / Yn)
-        let fz = pivotXYZ(Z / Zn)
+        let xR = pivotXyz(x / refX)
+        let yR = pivotXyz(y / refY)
+        let zR = pivotXyz(z / refZ)
         
-        let L = max(0.0, (116.0 * fy) - 16.0)
-        let a = 500.0 * (fx - fy)
-        let b = 200.0 * (fy - fz)
+        let l = (116.0 * yR) - 16.0
+        let a = 500.0 * (xR - yR)
+        let bVal = 200.0 * (yR - zR)
         
-        return CIELAB(L: L, a: a, b: b)
+        return CIELAB(L: l, a: a, b: bVal)
     }
     
-    // MARK: - Cutaneous Chromaticity Validation
-    
-    /// Validates whether a given CIE L*a*b* reading corresponds to living human cutaneous tissue across Fitzpatrick phototypes (I-VI).
-    /// Living skin must contain microvascular hemoglobin (a* in [3.0, 36.0]) and melanin warmth (b* in [3.5, 42.0]),
-    /// rejecting non-biological objects, floors, white walls, screens, and clothing.
     private func isValidHumanSkin(lab: CIELAB) -> Bool {
-        let isLightnessValid = lab.L >= 18.0 && lab.L <= 92.0
-        let isRedChromaValid = lab.a >= 3.0 && lab.a <= 36.0
-        let isYellowChromaValid = lab.b >= 3.5 && lab.b <= 42.0
-        return isLightnessValid && isRedChromaValid && isYellowChromaValid
+        return lab.L >= 15.0 && lab.L <= 95.0 &&
+               lab.a >= 2.0  && lab.a <= 45.0 &&
+               lab.b >= 3.0  && lab.b <= 50.0
     }
     
-    // MARK: - Image Orientation Normalization
-    
-    /// Redraws any UIImage into an upright bitmap matching its visual size and orientation.
-    /// Photos captured by the device camera frequently have `.imageOrientation == .right`,
-    /// which would otherwise rotate `cgImage` by 90 degrees and corrupt horizontal foot partitioning.
-    public func ensureUprightCGImage(from image: UIImage) -> CGImage? {
-        guard image.size.width > 0, image.size.height > 0 else { return nil }
-        
-        if image.imageOrientation == .up, let cgImage = image.cgImage {
-            return cgImage
+    private func ensureUprightCGImage(from image: UIImage) -> CGImage? {
+        if image.imageOrientation == .up, let cg = image.cgImage {
+            return cg
         }
-        
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = 1.0
-        let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
-        let normalizedImage = renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: image.size))
-        }
-        return normalizedImage.cgImage
+        UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
+        image.draw(in: CGRect(origin: .zero, size: image.size))
+        let normalized = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return normalized?.cgImage
     }
 }
 
@@ -286,25 +254,16 @@ public final class BilateralFootScannerService: BilateralFootScannerServiceProto
 
 #if DEBUG
 public final class BilateralFootScannerSpyingStub: BilateralFootScannerServiceProtocol, @unchecked Sendable {
-    public private(set) var capturedImages: [UIImage] = []
     public var resultToReturn: VisualIschemiaResult
-    public var errorToThrow: Error?
+    public private(set) var capturedImages: [UIImage] = []
     
-    public init(
-        resultToReturn: VisualIschemiaResult = .fixture(),
-        errorToThrow: Error? = nil
-    ) {
+    public init(resultToReturn: VisualIschemiaResult = VisualIschemiaResult.fixture()) {
         self.resultToReturn = resultToReturn
-        self.errorToThrow = errorToThrow
     }
     
     public func analyzeBilateralDorsalFeet(image: UIImage) async throws -> VisualIschemiaResult {
         capturedImages.append(image)
-        if let error = errorToThrow {
-            throw error
-        }
         return resultToReturn
     }
 }
 #endif
-
