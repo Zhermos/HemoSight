@@ -1,0 +1,649 @@
+import Foundation
+import SwiftUI
+import Combine
+
+/// Current step in the multi-stage vascular screening workflow.
+public enum ScreeningStep: Int, CaseIterable, Identifiable {
+    case step1FingerPPG = 1
+    case step2ToePPG = 2
+    case step3Dashboard = 3
+    
+    public var id: Int { rawValue }
+    
+    public var title: String {
+        switch self {
+        case .step1FingerPPG: return "Step 1: Fingertip Pulse (Baseline)"
+        case .step2ToePPG: return "Step 2: Big Toe Pulse (Distal)"
+        case .step3Dashboard: return "Step 3: Clinical Results Dashboard"
+        }
+    }
+    
+    public func localizedShortName(for language: AppLanguage) -> String {
+        HemosightStrings.stepperShortName(for: self, language: language)
+    }
+    
+    public func localizedFullTitle(for language: AppLanguage) -> String {
+        HemosightStrings.stepperFullTitle(for: self, language: language)
+    }
+}
+
+
+/// Main application view model managing screening states, hardware streaming, and clinical scoring.
+@Observable
+@MainActor
+public final class ScreeningWorkflowViewModel {
+    
+    // Language State
+    public var language: AppLanguage = .english {
+        didSet {
+            UserDefaults.standard.set(language.rawValue, forKey: "app_language")
+            if oldValue != language && finalReport != nil {
+                regeneratePDFForCurrentLanguage()
+            }
+        }
+    }
+    
+    // Workflow State
+    public var currentStep: ScreeningStep = .step1FingerPPG
+    public var isProcessing: Bool = false
+    public var errorMessage: String?
+    
+    // Supplemental Foot Scan in Dashboard
+    public var isShowingSupplementalFootTutorial: Bool = false
+    public var isShowingSupplementalFootCamera: Bool = false
+    
+    // Contextual Tutorial Flow State
+    public var activeTutorialStep: ScreeningStep? = nil
+    
+    public func isTutorialSuppressed(for step: ScreeningStep) -> Bool {
+        UserDefaults.standard.bool(forKey: "hide_tutorial_step_\(step.rawValue)")
+    }
+    
+    public func setTutorialSuppressed(_ suppressed: Bool, for step: ScreeningStep) {
+        UserDefaults.standard.set(suppressed, forKey: "hide_tutorial_step_\(step.rawValue)")
+    }
+    
+    public func isTutorialDismissed(for step: ScreeningStep) -> Bool {
+        isTutorialSuppressed(for: step)
+    }
+    
+    public func setTutorialDismissed(_ dismissed: Bool, for step: ScreeningStep) {
+        setTutorialSuppressed(dismissed, for: step)
+    }
+    
+    public func checkAndTriggerTutorial(for step: ScreeningStep) {
+        if !isTutorialSuppressed(for: step) {
+            activeTutorialStep = step
+        }
+    }
+    
+    public func showTutorialForCurrentStep() {
+        if isRecordingPPG {
+            stopPPGScanEarly()
+        }
+        activeTutorialStep = currentStep
+    }
+    
+    public func dismissActiveTutorial() {
+        activeTutorialStep = nil
+    }
+    
+    public func showSupplementalFootTutorial() {
+        isShowingSupplementalFootTutorial = true
+    }
+    
+    public func dismissSupplementalFootTutorial() {
+        isShowingSupplementalFootTutorial = false
+    }
+    
+    // Patient Data
+    public var patientName: String = "Eleanor Vance"
+    public var patientAge: Int = 74
+    
+    // Step 1: Visual Foot Photo Data
+    public var capturedFootImage: UIImage?
+    public var visualResult: VisualIschemiaResult?
+    
+    // Step 2 & 3: PPG Data
+    public var isRecordingPPG: Bool = false
+    public var scanSecondsRemaining: Int = 30
+    public var currentContactState: CameraContactState = .notCovered
+    public var currentSQI: Double = 0.0
+    public var liveBPM: Int? = nil
+    
+    // Motion Artifact State
+    public var motionStability: DeviceMotionStability = .stable
+    public var motionExcessiveSeconds: Int = 0
+    public var isMotionExcessiveNoticeVisible: Bool {
+        motionExcessiveSeconds >= 8
+    }
+    
+    // Real-time live waveforms for Swift Charts (rolling buffer)
+    public var liveWaveformPoints: [PPGDataPoint] = []
+    @ObservationIgnored public var fingerRawSamples: [Float] = []
+    @ObservationIgnored public var fingerFilteredSamples: [Float] = []
+    @ObservationIgnored public var fingerSQISamples: [Double] = []
+    public var fingerMorphometry: WaveformMorphometry?
+    
+    @ObservationIgnored public var toeRawSamples: [Float] = []
+    @ObservationIgnored public var toeFilteredSamples: [Float] = []
+    @ObservationIgnored public var toeSQISamples: [Double] = []
+    public var toeMorphometry: WaveformMorphometry?
+    
+    // Step 4: Final Assessment
+    public var finalReport: ComprehensivePADReport?
+    public var generatedPDFData: Data?
+    
+    // MARK: - Step Completion & Manual Navigation
+    
+    // Step completion tracking
+    public var isFingerScanCompleted: Bool { fingerMorphometry != nil }
+    public var isToeScanCompleted: Bool { toeMorphometry != nil }
+    
+    public var isCurrentStepScanCompleted: Bool {
+        switch currentStep {
+        case .step1FingerPPG: return isFingerScanCompleted
+        case .step2ToePPG: return isToeScanCompleted
+        case .step3Dashboard: return true
+        }
+    }
+    
+    // Manual Step Progression
+    public func proceedToNextStep() {
+        switch currentStep {
+        case .step1FingerPPG:
+            currentStep = .step2ToePPG
+            checkAndTriggerTutorial(for: .step2ToePPG)
+        case .step2ToePPG:
+            finalizeScreeningAssessment()
+            currentStep = .step3Dashboard
+            // ไม่ต้องเรียก checkAndTriggerTutorial ในหน้านี้แล้ว
+        case .step3Dashboard:
+            break
+        }
+    }
+    
+    // Retest current step
+    public func retestCurrentStep() {
+        stopPPGScanEarly()
+        scanSecondsRemaining = 30
+        liveWaveformPoints.removeAll()
+        liveBPM = nil
+        motionExcessiveSeconds = 0
+        motionStability = .stable
+        
+        switch currentStep {
+        case .step1FingerPPG:
+            fingerRawSamples.removeAll()
+            fingerFilteredSamples.removeAll()
+            fingerSQISamples.removeAll()
+            fingerMorphometry = nil
+        case .step2ToePPG:
+            toeRawSamples.removeAll()
+            toeFilteredSamples.removeAll()
+            toeSQISamples.removeAll()
+            toeMorphometry = nil
+        case .step3Dashboard:
+            break
+        }
+    }
+    
+    // Backward Navigation
+    public func navigateBack() {
+        guard let prev = ScreeningStep(rawValue: currentStep.rawValue - 1) else { return }
+        navigateToStep(prev)
+    }
+    
+    public func navigateToStep(_ targetStep: ScreeningStep) {
+        guard targetStep != currentStep else { return }
+        if isRecordingPPG {
+            stopPPGScanEarly()
+        }
+        currentStep = targetStep
+    }
+    
+    // Services
+    private let visualScanner: any BilateralFootScannerServiceProtocol
+    private let cameraPPG: any CameraPPGServiceProtocol
+    private let dspEngine: SignalProcessingEngine
+    private let classifier: VascularRiskClassifier
+    private let reportService: any ReportGenerationServiceProtocol
+    private let motionService: any MotionArtifactServiceProtocol
+    
+    private var cancellables = Set<AnyCancellable>()
+    private var timerTask: Task<Void, Never>?
+    @ObservationIgnored private var sampleCounter: UInt64 = 0
+    @ObservationIgnored private var rollingBpmWindow: [Float] = []
+    @ObservationIgnored private var smoothedBPMValue: Double? = nil
+    
+    public init(
+        visualScanner: any BilateralFootScannerServiceProtocol,
+        cameraPPG: any CameraPPGServiceProtocol,
+        dspEngine: SignalProcessingEngine,
+        classifier: VascularRiskClassifier,
+        reportService: any ReportGenerationServiceProtocol,
+        motionService: any MotionArtifactServiceProtocol
+    ) {
+        self.visualScanner = visualScanner
+        self.cameraPPG = cameraPPG
+        self.dspEngine = dspEngine
+        self.classifier = classifier
+        self.reportService = reportService
+        self.motionService = motionService
+        if let storedLang = UserDefaults.standard.string(forKey: "app_language"),
+           let appLang = AppLanguage(rawValue: storedLang) {
+            self.language = appLang
+        }
+        // Auto-trigger Step 1 tutorial on launch
+        checkAndTriggerTutorial(for: .step1FingerPPG)
+        bindStreams()
+    }
+    
+    public convenience init(
+        visualScanner: (any BilateralFootScannerServiceProtocol)? = nil,
+        cameraPPG: (any CameraPPGServiceProtocol)? = nil,
+        dspEngine: SignalProcessingEngine? = nil,
+        classifier: VascularRiskClassifier? = nil,
+        reportService: (any ReportGenerationServiceProtocol)? = nil,
+        motionService: (any MotionArtifactServiceProtocol)? = nil
+    ) {
+        self.init(
+            visualScanner: visualScanner ?? BilateralFootScannerService(),
+            cameraPPG: cameraPPG ?? CameraPPGService(),
+            dspEngine: dspEngine ?? SignalProcessingEngine(sampleRate: 60.0),
+            classifier: classifier ?? VascularRiskClassifier(),
+            reportService: reportService ?? ReportGenerationService(),
+            motionService: motionService ?? MotionArtifactFilterService()
+        )
+    }
+    
+    // MARK: - Stream Bindings
+    
+    private func bindStreams() {
+        bindCameraStreams()
+        bindMotionStream()
+    }
+    
+    private func bindMotionStream() {
+        motionService.motionStabilityPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] stability in
+                guard let self = self else { return }
+                self.motionStability = stability
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func bindCameraStreams() {
+        cameraPPG.contactStateSubject
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                guard let self = self else { return }
+                self.currentContactState = state
+                if state != .optimal {
+                    self.updateLiveBPM(nil)
+                }
+            }
+            .store(in: &cancellables)
+            
+        cameraPPG.signalQualitySubject
+            .throttle(for: .milliseconds(250), scheduler: DispatchQueue.main, latest: true)
+            .sink { [weak self] sqi in
+                guard let self = self else { return }
+                self.currentSQI = sqi
+                if sqi < 0.5 {
+                    self.updateLiveBPM(nil)
+                }
+                if self.isRecordingPPG {
+                    // Do not record SQI during excessive motion to avoid biasing metrics
+                    guard self.motionStability != .excessiveMotion else { return }
+                    let adjustedSQI = self.motionStability == .moderateMotion ? sqi * 0.75 : sqi
+                    if self.currentStep == .step1FingerPPG {
+                        self.fingerSQISamples.append(adjustedSQI)
+                    } else if self.currentStep == .step2ToePPG {
+                        self.toeSQISamples.append(adjustedSQI)
+                    }
+                }
+            }
+            .store(in: &cancellables)
+            
+        cameraPPG.sampleSubject
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] point in
+                guard let self = self, self.isRecordingPPG else { return }
+                
+                // Invalidate/reject motion-corrupted samples during excessive movement
+                guard self.motionStability != .excessiveMotion else {
+                    self.updateLiveBPM(nil)
+                    return
+                }
+                
+                // Store raw sample in clinical buffer (full 60 FPS)
+                if self.currentStep == .step1FingerPPG {
+                    self.fingerRawSamples.append(point.rawGreen)
+                } else if self.currentStep == .step2ToePPG {
+                    self.toeRawSamples.append(point.rawGreen)
+                }
+                
+                // Maintain 4-second rolling sliding window (~240 samples) for real-time BPM estimation
+                self.rollingBpmWindow.append(point.rawGreen)
+                if self.rollingBpmWindow.count > 240 {
+                    self.rollingBpmWindow.removeFirst()
+                }
+                
+                self.sampleCounter += 1
+                
+                // Throttle chart rendering to ~7-8 FPS (every 8th sample) with an 80-point rolling window
+                if self.sampleCounter % 8 == 0 {
+                    self.liveWaveformPoints.append(point)
+                    if self.liveWaveformPoints.count > 80 {
+                        self.liveWaveformPoints.removeFirst()
+                    }
+                }
+                
+                // Run online BPM estimation every 30 samples (~0.5s) if contact is optimal and at least 3s elapsed (~180 samples)
+                if self.sampleCounter % 30 == 0 && self.sampleCounter >= 180 {
+                    self.processOnlineBPM()
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func processOnlineBPM() {
+        guard isRecordingPPG else { return }
+        guard currentContactState == .optimal, currentSQI >= 0.5, rollingBpmWindow.count >= 120 else {
+            updateLiveBPM(nil)
+            return
+        }
+        
+        let windowSnapshot = self.rollingBpmWindow
+        let engine = self.dspEngine
+        
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let rawBPM = engine.estimateInstantaneousBPM(fromWindow: windowSnapshot)
+            await self?.applySmoothedBPM(rawBPM)
+        }
+    }
+    
+    private func applySmoothedBPM(_ rawBPM: Double?) {
+        guard isRecordingPPG else { return }
+        guard let rawBPM = rawBPM else {
+            updateLiveBPM(nil)
+            return
+        }
+        
+        let alpha = 0.35
+        let smoothed: Double
+        if let previous = smoothedBPMValue {
+            smoothed = (alpha * rawBPM) + ((1.0 - alpha) * previous)
+        } else {
+            smoothed = rawBPM
+        }
+        smoothedBPMValue = smoothed
+        updateLiveBPM(Int(smoothed.rounded()))
+    }
+    
+    private func updateLiveBPM(_ newBPM: Int?) {
+        if liveBPM != newBPM {
+            liveBPM = newBPM
+        }
+    }
+    
+    // MARK: - Step 1: Visual Photo Analysis
+    
+    public func processFootPhoto(_ image: UIImage) async {
+        isProcessing = true
+        errorMessage = nil
+        capturedFootImage = image
+        
+        do {
+            let result = try await visualScanner.analyzeBilateralDorsalFeet(image: image)
+            self.visualResult = result
+            self.isProcessing = false
+            self.currentStep = .step1FingerPPG
+            triggerHapticFeedback(.success)
+            checkAndTriggerTutorial(for: .step1FingerPPG)
+        } catch {
+            self.isProcessing = false
+            self.errorMessage = error.localizedDescription
+            triggerHapticFeedback(.error)
+        }
+    }
+    
+    // MARK: - Step 2 & 3: PPG Scan Workflow
+    
+    public func startCurrentPPGScan() async {
+        liveWaveformPoints.removeAll()
+        scanSecondsRemaining = 30
+        isRecordingPPG = true
+        errorMessage = nil
+        sampleCounter = 0
+        liveBPM = nil
+        smoothedBPMValue = nil
+        rollingBpmWindow.removeAll()
+        
+        if currentStep == .step1FingerPPG {
+            fingerRawSamples.removeAll()
+            fingerSQISamples.removeAll()
+        } else if currentStep == .step2ToePPG {
+            toeRawSamples.removeAll()
+            toeSQISamples.removeAll()
+        }
+        
+        startScanTimer() // Start countdown immediately on MainActor
+        motionExcessiveSeconds = 0
+        motionService.startMonitoring()
+        
+        // Launch camera hardware initialization in an independent Task so UI timer never freezes
+        Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                try await self.cameraPPG.startCapture()
+            } catch {
+                await MainActor.run {
+                    self.stopPPGScanEarly()
+                    self.errorMessage = error.localizedDescription
+                    self.triggerHapticFeedback(.error)
+                }
+            }
+        }
+    }
+    
+    private func startScanTimer() {
+        timerTask?.cancel()
+        timerTask = Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            while self.scanSecondsRemaining > 0 && self.isRecordingPPG {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard !Task.isCancelled, self.isRecordingPPG else { break }
+                
+                // If excessive motion is detected, hold the countdown and accumulate motion duration
+                if self.motionStability == .excessiveMotion {
+                    self.motionExcessiveSeconds += 1
+                    continue
+                }
+                
+                self.scanSecondsRemaining -= 1
+            }
+            if self.isRecordingPPG && self.scanSecondsRemaining == 0 {
+                await self.finishCurrentPPGScan()
+            }
+        }
+    }
+    
+    public func stopPPGScanEarly() {
+        timerTask?.cancel()
+        cameraPPG.stopCapture()
+        motionService.stopMonitoring()
+        isRecordingPPG = false
+        liveBPM = nil
+        smoothedBPMValue = nil
+        rollingBpmWindow.removeAll()
+    }
+    
+    private func finishCurrentPPGScan() async {
+        stopPPGScanEarly()
+        triggerHapticFeedback(.success)
+        
+        if currentStep == .step1FingerPPG {
+            // Filter and extract Finger metrics
+            fingerFilteredSamples = dspEngine.filterSignal(fingerRawSamples)
+            let avgSQI = fingerSQISamples.isEmpty ? currentSQI : (fingerSQISamples.reduce(0.0, +) / Double(fingerSQISamples.count))
+            fingerMorphometry = dspEngine.extractMorphometry(
+                filteredSignal: fingerFilteredSamples,
+                site: .finger,
+                avgSQI: avgSQI
+            )
+            // Stays on step 1 with completion controls visible
+        } else if currentStep == .step2ToePPG {
+            // Filter and extract Toe metrics
+            toeFilteredSamples = dspEngine.filterSignal(toeRawSamples)
+            let avgSQI = toeSQISamples.isEmpty ? currentSQI : (toeSQISamples.reduce(0.0, +) / Double(toeSQISamples.count))
+            toeMorphometry = dspEngine.extractMorphometry(
+                filteredSignal: toeFilteredSamples,
+                site: .toe,
+                avgSQI: avgSQI
+            )
+            // Stays on step 2 with completion controls visible
+        }
+    }
+    
+    // MARK: - Step 3: Classification & Report Generation
+    
+    public func finalizeScreeningAssessment() {
+        guard let finger = fingerMorphometry,
+              let toe = toeMorphometry else {
+            return
+        }
+        
+        let report = classifier.evaluateVascularRisk(
+            visualResult: visualResult,
+            fingerWave: finger,
+            toeWave: toe,
+            patientName: patientName,
+            patientAge: patientAge
+        )
+        self.finalReport = report
+        
+        // ReportGenerationService is @MainActor, invoke directly with active language
+        let pdfData = reportService.generatePDFReport(
+            report: report,
+            footImage: capturedFootImage,
+            fingerWaveformSamples: fingerFilteredSamples,
+            toeWaveformSamples: toeFilteredSamples,
+            language: self.language
+        )
+        self.generatedPDFData = pdfData
+    }
+    
+    public func regeneratePDFForCurrentLanguage() {
+        guard let report = finalReport else { return }
+        let pdfData = reportService.generatePDFReport(
+            report: report,
+            footImage: capturedFootImage,
+            fingerWaveformSamples: fingerFilteredSamples,
+            toeWaveformSamples: toeFilteredSamples,
+            language: self.language
+        )
+        self.generatedPDFData = pdfData
+    }
+    
+    // MARK: - Supplemental Foot Photo Analysis (Optional in Results)
+    
+    public func processSupplementalFootPhoto(_ image: UIImage) async {
+        isProcessing = true
+        errorMessage = nil
+        capturedFootImage = image
+        
+        do {
+            let result = try await visualScanner.analyzeBilateralDorsalFeet(image: image)
+            self.visualResult = result
+            self.isProcessing = false
+            triggerHapticFeedback(.success)
+            // Recalculate score and update PDF with visual data
+            finalizeScreeningAssessment()
+        } catch {
+            self.isProcessing = false
+            self.errorMessage = error.localizedDescription
+            triggerHapticFeedback(.error)
+        }
+    }
+    
+    public func restartWorkflow() {
+        stopPPGScanEarly()
+        scanSecondsRemaining = 30
+        liveWaveformPoints.removeAll()
+        motionExcessiveSeconds = 0
+        motionStability = .stable
+        capturedFootImage = nil
+        visualResult = nil
+        fingerRawSamples.removeAll()
+        fingerFilteredSamples.removeAll()
+        fingerSQISamples.removeAll()
+        fingerMorphometry = nil
+        toeRawSamples.removeAll()
+        toeFilteredSamples.removeAll()
+        toeSQISamples.removeAll()
+        toeMorphometry = nil
+        finalReport = nil
+        generatedPDFData = nil
+        liveBPM = nil
+        smoothedBPMValue = nil
+        rollingBpmWindow.removeAll()
+        currentStep = .step1FingerPPG
+        checkAndTriggerTutorial(for: .step1FingerPPG)
+    }
+    
+    private func triggerHapticFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(type)
+    }
+}
+
+// MARK: - SwiftUI Preview Helper
+
+#if DEBUG
+extension ScreeningWorkflowViewModel {
+    public static func preview(
+        step: ScreeningStep = .step1FingerPPG,
+        isProcessing: Bool = false,
+        report: ComprehensivePADReport? = nil,
+        isRecordingPPG: Bool = false,
+        contactState: CameraContactState = .optimal,
+        errorMessage: String? = nil,
+        language: AppLanguage = .english,
+        liveBPM: Int? = nil,
+        activeTutorialStep: ScreeningStep? = nil,
+        motionStability: DeviceMotionStability = .stable,
+        motionExcessiveSeconds: Int = 0
+    ) -> ScreeningWorkflowViewModel {
+        let vm = ScreeningWorkflowViewModel()
+        vm.language = language
+        vm.currentStep = step
+        vm.isProcessing = isProcessing
+        vm.finalReport = report
+        vm.isRecordingPPG = isRecordingPPG
+        vm.currentContactState = contactState
+        vm.errorMessage = errorMessage
+        vm.liveBPM = liveBPM ?? (isRecordingPPG ? 72 : nil)
+        vm.activeTutorialStep = activeTutorialStep
+        vm.motionStability = motionStability
+        vm.motionExcessiveSeconds = motionExcessiveSeconds
+        if isRecordingPPG {
+            vm.scanSecondsRemaining = 18
+            vm.liveWaveformPoints = (0..<50).map { i in
+                PPGDataPoint(
+                    timestamp: Double(i) * 0.05,
+                    filteredGreen: Float(sin(Double(i) * 0.4) * 40.0 + 100.0),
+                    rawGreen: Float(sin(Double(i) * 0.4) * 40.0 + 100.0),
+                    rawRed: 200.0
+                )
+            }
+        }
+        return vm
+    }
+}
+#endif
+
